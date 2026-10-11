@@ -865,6 +865,10 @@ enum DefaultsKey {
     static let notchAgentsPeriod = "notchAgentsPeriod"
     static let notchAgentsLimitDisplay = "notchAgentsLimitDisplay"
     static let notchAgentsLimitFocus = "notchAgentsLimitFocus"
+    static let notchAgentsRestingLayout = "notchAgentsRestingLayout"
+    static let notchAgentsRestingSession = "notchAgentsRestingSession"
+    static let notchAgentsRestingWeekly = "notchAgentsRestingWeekly"
+    static let notchAgentsRestingHidden = "notchAgentsRestingHidden"
     static let notchAgentsLiveActivity = "notchAgentsLiveActivity"
     static let notchAgentsReadout = "notchAgentsReadout"
     static let notchAgentsFinishAlert = "notchAgentsFinishAlert"
@@ -942,6 +946,8 @@ enum DefaultsKey {
     // Dev-build only: force the "update available" UI for local testing.
     static let simulateUpdate = "simulateUpdate"
     static let simulateBetaUI = "simulateBetaUI"
+    // Dev-build only: stand-in usage for the resting AI meters, e.g. "claude.session=0.86".
+    static let simulateRestingUsage = "simulateRestingUsage"
 
     /// Features hub availability layer, one key per AppFeature raw value.
     /// Registered true: unavailable features vanish from every surface and
@@ -1444,6 +1450,10 @@ enum Defaults {
         DefaultsKey.notchAgentsPeriod: AgentPeriod.today.rawValue,
         DefaultsKey.notchAgentsLimitDisplay: NotchAgentLimitDisplay.remaining.rawValue,
         DefaultsKey.notchAgentsLimitFocus: NotchAgentLimitFocus.mostUsed.rawValue,
+        DefaultsKey.notchAgentsRestingLayout: NotchAgentRestingLayout.single.rawValue,
+        DefaultsKey.notchAgentsRestingSession: true,
+        DefaultsKey.notchAgentsRestingWeekly: true,
+        DefaultsKey.notchAgentsRestingHidden: "",
         DefaultsKey.notchAgentsLiveActivity: true,
         DefaultsKey.notchAgentsReadout: NotchAgentReadout.elapsed.rawValue,
         DefaultsKey.notchAgentsFinishAlert: true,
