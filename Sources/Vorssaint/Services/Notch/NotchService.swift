@@ -825,8 +825,9 @@ final class NotchService: ObservableObject {
         let providers = enabled.filter { usage.seen.contains($0) || ($0 == .codex && !accounts.isEmpty) }
         guard !providers.isEmpty else { return 0 }
         return NotchAgentSupport.contentHeight(NotchAgentSupport.rows(
-            NotchAgentSupport.tiles(cards: NotchAgentSupport.cards(), providers: providers, codexAccounts: accounts),
-            width: width))
+            NotchAgentSupport.tiles(cards: NotchAgentSupport.cards(), providers: providers, codexAccounts: accounts,
+                                    claudeUsesAPI: AgentClaudeBilling.usesAPI()),
+            width: width), width: width)
     }
     var expandedGeometry: NotchGeometry {
         var result = geometry
