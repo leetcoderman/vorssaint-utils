@@ -282,6 +282,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/NotchNotificationStrings.swift
         Sources/Vorssaint/Core/NotchGestureStrings.swift
         Sources/Vorssaint/Core/NotchAgentStrings.swift
+        Sources/Vorssaint/Core/NotchAgentPlaceStrings.swift
         Sources/Vorssaint/Core/CodexAccountStrings.swift
         Sources/Vorssaint/Core/ClaudeBillingStrings.swift
         Sources/Vorssaint/Services/Notch/NotchAgentSupport.swift
