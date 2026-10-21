@@ -10,6 +10,10 @@ struct NotchAgentsView: View {
     @ObservedObject private var accounts = CodexProfileLimitsService.shared
     @ObservedObject private var l10n = L10n.shared
     @Environment(\.notchSettingsPreview) private var preview
+    @Environment(\.notchAgentsLockScreen) private var lockScreen
+    /// The lock screen's own Trend period. It starts from the island's and
+    /// is never saved, so the island keeps its own.
+    @State private var lockedPeriod: AgentPeriod?
     @AppStorage(DefaultsKey.notchAgentsPeriod) private var period = AgentPeriod.today.rawValue
     @AppStorage(DefaultsKey.notchAgentsLimitDisplay) private var display = NotchAgentLimitDisplay.remaining.rawValue
     @AppStorage(DefaultsKey.notchAgentsCardOrder) private var cardOrder = ""
@@ -46,10 +50,20 @@ struct NotchAgentsView: View {
     private var rows: [[NotchAgentTile]] {
         // The strings are read here so a change in Settings redraws the page.
         _ = (cardOrder, hiddenCards)
-        return NotchAgentSupport.rows(NotchAgentSupport.tiles(cards: NotchAgentSupport.cards(), providers: providers,
-                                                              codexAccounts: codexAccounts.map(\.id),
-                                                              claudeUsesAPI: claudeUsesAPI),
-                                      width: size.width)
+        var tiles = NotchAgentSupport.tiles(cards: NotchAgentSupport.cards(), providers: providers,
+                                            codexAccounts: codexAccounts.map(\.id), claudeUsesAPI: claudeUsesAPI)
+        // Projects are only their names.
+        if lockScreen?.hidesProjects == true { tiles.removeAll { $0.card == .projects } }
+        let rows = NotchAgentSupport.rows(tiles, width: size.width)
+        return lockScreen == nil ? rows : NotchAgentSupport.fitted(rows, height: size.height, width: size.width,
+                                                                   live: usage.snapshot.live)
+    }
+
+    /// What Trend grows by on the lock screen, which never scrolls: the
+    /// height the other cards leave.
+    private func trendGrowth(_ rows: [[NotchAgentTile]]) -> CGFloat {
+        guard lockScreen != nil, rows.joined().contains(where: { $0.card == .trend }) else { return 0 }
+        return max(0, size.height - NotchAgentSupport.contentHeight(rows, width: size.width, live: usage.snapshot.live))
     }
 
     var body: some View {
@@ -67,7 +81,8 @@ struct NotchAgentsView: View {
             } else {
                 let rows = rows
                 TimelineView(.periodic(from: .now, by: 10)) { context in
-                    if NotchAgentSupport.contentHeight(rows, width: size.width, live: usage.snapshot.live)
+                    if lockScreen == nil,
+                       NotchAgentSupport.contentHeight(rows, width: size.width, live: usage.snapshot.live)
                         > size.height + 0.5 {
                         ScrollView { grid(rows, now: context.date) }
                             .scrollIndicators(.automatic)
@@ -78,18 +93,21 @@ struct NotchAgentsView: View {
                 // The period drives several cards, so it sits in the island's
                 // top row, beside the camera, while any of them shows.
                 .notchBand(leading: {
-                    if rows.joined().contains(where: { $0.card.followsPeriod }) { periodMenu }
+                    if lockScreen == nil, rows.joined().contains(where: { $0.card.followsPeriod }) { periodMenu }
                 })
             }
         }
         .frame(width: size.width, height: size.height, alignment: .top)
         .environment(\.locale, l10n.language.formattingLocale())
+        // The lock screen reports its page itself, so the island's page can
+        // report its own as the Mac unlocks.
         .onAppear {
+            guard lockScreen == nil else { return }
             usage.pageDidAppear(preview: preview)
             accounts.pageDidAppear(preview: preview)
         }
         .onDisappear {
-            guard !preview else { return }
+            guard !preview, lockScreen == nil else { return }
             usage.pageDidDisappear()
             accounts.pageDidDisappear()
         }
@@ -104,12 +122,17 @@ struct NotchAgentsView: View {
     }
 
     private func grid(_ rows: [[NotchAgentTile]], now: Date) -> some View {
-        VStack(spacing: NotchAgentSupport.spacing) {
+        let growth = trendGrowth(rows)
+        return VStack(spacing: NotchAgentSupport.spacing) {
             ForEach(rows, id: \.first?.id) { row in
                 HStack(spacing: NotchAgentSupport.spacing) {
-                    ForEach(row) { tile in card(tile, now: now) }
+                    // On the lock screen only Trend's period takes clicks.
+                    ForEach(row) { tile in
+                        card(tile, now: now).allowsHitTesting(lockScreen == nil || tile.card == .trend)
+                    }
                 }
-                .frame(height: NotchAgentSupport.height(of: row, width: size.width, live: usage.snapshot.live))
+                .frame(height: NotchAgentSupport.height(of: row, width: size.width, live: usage.snapshot.live)
+                       + (row.contains { $0.card == .trend } ? growth : 0))
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
@@ -134,18 +157,29 @@ struct NotchAgentsView: View {
         case .live:
             NotchAgentLiveCard(snapshot: snapshot, providers: providers, text: text)
         case .trend:
-            NotchAgentTrendCard(snapshot: snapshot, providers: providers, period: shown, text: text)
+            if lockScreen == nil {
+                NotchAgentTrendCard(snapshot: snapshot, providers: providers, period: shown, text: text)
+            } else {
+                let period = lockedPeriod ?? shown
+                NotchAgentTrendCard(snapshot: snapshot, providers: providers, period: period, text: text,
+                                    choice: Binding(get: { period }, set: { lockedPeriod = $0 }))
+            }
         case .models:
             NotchAgentShareCard(title: text.modelsCard, symbol: NotchAgentCard.models.symbol,
-                                shares: snapshot.usage(shown).models, byCost: snapshot.usage(shown).fullyPriced, text: text)
+                                shares: snapshot.usage(shown).models, byCost: showsCost(snapshot.usage(shown)), text: text)
         case .projects:
             NotchAgentShareCard(title: text.projectsCard, symbol: NotchAgentCard.projects.symbol,
-                                shares: snapshot.usage(shown).projects, byCost: snapshot.usage(shown).fullyPriced, text: text)
+                                shares: snapshot.usage(shown).projects, byCost: showsCost(snapshot.usage(shown)), text: text)
         case .activity:
             NotchAgentActivityCard(snapshot: snapshot, text: text)
         case .resets:
             NotchAgentResetsCard(now: now, text: text, showsDefaultAccount: tile.namesDefaultAccount)
         }
+    }
+
+    /// Shares and charts count tokens where amounts are hidden.
+    private func showsCost(_ usage: AgentPeriodUsage) -> Bool {
+        usage.fullyPriced && lockScreen?.hidesAmounts != true
     }
 
     private func account(_ tile: NotchAgentTile, now: Date) -> NotchAgentAccount? {
@@ -164,6 +198,32 @@ struct NotchAgentsView: View {
                                  checking: state.checking, failure: failure, refreshHint: strings.refreshHint,
                                  checkLabel: strings.check) { accounts.refresh(id: id, force: true) }
     }
+}
+
+extension EnvironmentValues {
+    /// The AI page on the lock screen, with what it keeps back; nil in the
+    /// island and in Settings.
+    var notchAgentsLockScreen: NotchAgentPrivacy? {
+        get { self[NotchAgentsLockScreenKey.self] }
+        set { self[NotchAgentsLockScreenKey.self] = newValue }
+    }
+}
+
+private struct NotchAgentsLockScreenKey: EnvironmentKey {
+    static let defaultValue: NotchAgentPrivacy? = nil
+}
+
+/// An amount of money, which a lock screen set to hide amounts redacts.
+private struct NotchAgentAmount: ViewModifier {
+    @Environment(\.notchAgentsLockScreen) private var lockScreen
+
+    func body(content: Content) -> some View {
+        content.privacySensitive(lockScreen?.hidesAmounts == true)
+    }
+}
+
+private extension View {
+    func agentAmount() -> some View { modifier(NotchAgentAmount()) }
 }
 
 private struct NotchAgentChip: View {
@@ -205,6 +265,7 @@ private struct NotchAgentLimitsCard: View {
     var account: NotchAgentAccount? = nil
     /// Its sessions' row under the meters; the page sizes the card for it.
     var showsSessions = false
+    @Environment(\.notchAgentsLockScreen) private var lockScreen
     @ObservedObject private var l10n = L10n.shared
     @Environment(\.locale) private var locale
 
@@ -239,7 +300,7 @@ private struct NotchAgentLimitsCard: View {
                             // A check waiting its turn shows as one under way.
                             if account.checking {
                                 ProgressView().controlSize(.mini).scaleEffect(0.65).frame(width: 12, height: 12)
-                            } else {
+                            } else if lockScreen == nil {
                                 Button(action: account.refresh) {
                                     Image(systemName: "arrow.clockwise").font(.system(size: 10))
                                 }
@@ -297,6 +358,7 @@ private struct NotchAgentLimitsCard: View {
         let month = NotchAgentSupport.claudePlanMonth(snapshot, splitsBilling: false, now: now)
         if weekly {
             Text(places.monthCaption(AgentFormat.cost(month)))
+                .agentAmount()
                 .font(.system(size: 9.5))
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)
@@ -346,6 +408,7 @@ private struct NotchAgentLimitsCard: View {
                         .foregroundStyle(agentResetTint)
                     Spacer(minLength: 2)
                     Text(AgentFormat.cost(block.totals.cost))
+                        .agentAmount()
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                 }
@@ -373,6 +436,7 @@ private struct NotchAgentLimitsCard: View {
                             .foregroundStyle(.white.opacity(0.85))
                         Spacer(minLength: 2)
                         Text(costText)
+                            .agentAmount()
                             .font(.system(size: 12, weight: .semibold, design: .rounded))
                             .monospacedDigit()
                     }
@@ -438,6 +502,7 @@ private struct NotchAgentSessionSlot: View {
     /// An API key pays for these sessions, so each says what it cost.
     var showsCost = false
     let text: NotchAgentStrings
+    @Environment(\.notchAgentsLockScreen) private var lockScreen
     @ObservedObject private var l10n = L10n.shared
 
     static let rowHeight = NotchAgentSupport.sessionRowHeight
@@ -482,7 +547,7 @@ private struct NotchAgentSessionSlot: View {
         HStack(spacing: 6) {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: 4) {
-                    Text(session.project.isEmpty ? provider.displayName : session.project)
+                    Text(session.project.isEmpty || lockScreen?.hidesProjects == true ? provider.displayName : session.project)
                         .font(.system(size: 10.5, weight: .semibold))
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -515,7 +580,7 @@ private struct NotchAgentSessionSlot: View {
     private func detail(_ session: AgentLiveSession) -> String {
         [AgentPricing.displayName(session.model),
          session.tokens.output > 0 ? text.written(AgentFormat.tokens(session.tokens.output)) : "",
-         showsCost && session.cost > 0 ? AgentFormat.cost(session.cost) : ""]
+         showsCost && session.cost > 0 && lockScreen?.hidesAmounts != true ? AgentFormat.cost(session.cost) : ""]
             .filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
@@ -560,6 +625,7 @@ private struct NotchAgentAmountRow: View {
                 .lineLimit(1)
             Spacer(minLength: 2)
             Text(value.map { AgentFormat.cost($0) } ?? AgentFormat.cost(0))
+                .agentAmount()
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(value.map { agentSpendTint($0) } ?? Color.secondary)
@@ -761,6 +827,7 @@ private struct NotchAgentClaudeBillingCard: View {
                 Spacer(minLength: 2)
                 if weekly {
                     Text(places.monthCaption(AgentFormat.cost(planMonth)))
+                        .agentAmount()
                         .font(.system(size: 8.5))
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
@@ -821,6 +888,7 @@ private struct NotchAgentClaudeBillingCard: View {
                 .lineLimit(1)
             Spacer(minLength: 2)
             Text(value)
+                .agentAmount()
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .lineLimit(1)
@@ -842,6 +910,7 @@ private struct NotchAgentClaudeBillingCard: View {
                         .foregroundStyle(Color.green)
                     Spacer(minLength: 2)
                     Text("~ " + AgentFormat.cost(max(0, left)))
+                        .agentAmount()
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(tint == provider.tint ? Color.green : tint)
@@ -878,6 +947,7 @@ private struct NotchAgentSpendCard: View {
     let text: NotchAgentStrings
     /// Claude Code's spending was paid from API credits, not the plan.
     var claudeUsesAPI = false
+    @Environment(\.notchAgentsLockScreen) private var lockScreen
     @ObservedObject private var l10n = L10n.shared
 
     var body: some View {
@@ -897,6 +967,7 @@ private struct NotchAgentSpendCard: View {
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Text((lifetime.fullyPriced ? "" : "≥ ") + AgentFormat.cost(lifetime.total.cost))
+                        .agentAmount()
                         .font(.system(size: 22, weight: .medium, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(agentSpendTint(lifetime.total.cost))
@@ -920,7 +991,7 @@ private struct NotchAgentSpendCard: View {
     /// The top three models, as the Models card listed them.
     @ViewBuilder private func models(_ usage: AgentPeriodUsage) -> some View {
         let shown = Array(usage.models.prefix(3))
-        let byCost = usage.fullyPriced
+        let byCost = usage.fullyPriced && lockScreen?.hidesAmounts != true
         let peak = shown.map { $0.totals.weight(byCost: byCost) }.max() ?? 0
         if !shown.isEmpty {
             VStack(alignment: .leading, spacing: 3) {
@@ -996,6 +1067,7 @@ private struct NotchAgentLiveCard: View {
     let snapshot: AgentUsageSnapshot
     let providers: [AgentProvider]
     let text: NotchAgentStrings
+    @Environment(\.notchAgentsLockScreen) private var lockScreen
     @Environment(\.locale) private var locale
 
     var body: some View {
@@ -1028,7 +1100,7 @@ private struct NotchAgentLiveCard: View {
         VStack(alignment: .leading, spacing: 1) {
             HStack(spacing: 4) {
                 NotchAgentGlyph(provider: session.provider, size: 9)
-                Text(session.project.isEmpty ? session.provider.displayName : session.project)
+                Text(session.project.isEmpty || lockScreen?.hidesProjects == true ? session.provider.displayName : session.project)
                     .font(.system(size: 11, weight: .semibold))
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -1043,7 +1115,7 @@ private struct NotchAgentLiveCard: View {
             // the cost include.
             Text([AgentPricing.displayName(session.model),
                   session.tokens.output > 0 ? text.written(AgentFormat.tokens(session.tokens.output)) : "",
-                  session.cost > 0 ? AgentFormat.cost(session.cost) : ""]
+                  session.cost > 0 && lockScreen?.hidesAmounts != true ? AgentFormat.cost(session.cost) : ""]
                     .filter { !$0.isEmpty }.joined(separator: " · "))
                 .font(.system(size: 9.5))
                 .foregroundStyle(.secondary)
@@ -1075,28 +1147,65 @@ private struct NotchAgentTrendCard: View {
     let providers: [AgentProvider]
     let period: AgentPeriod
     let text: NotchAgentStrings
+    /// The lock screen's period, picked in the card itself.
+    var choice: Binding<AgentPeriod>? = nil
     @State private var hovered: Date?
     @Environment(\.locale) private var locale
+    @Environment(\.notchAgentsLockScreen) private var lockScreen
 
     private var buckets: [AgentBucket] {
         period == .today ? snapshot.hours : Array(snapshot.days.suffix(period.days))
     }
 
     var body: some View {
-        let byCost = snapshot.usage(period).fullyPriced
+        let byCost = snapshot.usage(period).fullyPriced && lockScreen?.hidesAmounts != true
         NotchAgentCardChrome {
             VStack(alignment: .leading, spacing: 6) {
                 NotchAgentCardHeader(title: text.trendCard, symbol: NotchAgentCard.trend.symbol) {
-                    Text(caption(byCost: byCost))
-                        .font(.system(size: 9.5, weight: .medium))
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    if let choice {
+                        periods(choice)
+                    } else {
+                        captionText(byCost: byCost)
+                    }
                 }
+                // The period's control takes the caption's place, which
+                // moves under the title.
+                if choice != nil { captionText(byCost: byCost) }
                 NotchAgentBars(buckets: buckets, providers: providers, byCost: byCost, hovered: $hovered)
                 axis
             }
         }
+    }
+
+    private func captionText(byCost: Bool) -> some View {
+        Text(caption(byCost: byCost))
+            .font(.system(size: 9.5, weight: .medium))
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+    }
+
+    /// Today, 7 days and 30 days, each showing its whole range.
+    private func periods(_ choice: Binding<AgentPeriod>) -> some View {
+        HStack(spacing: 1) {
+            ForEach(AgentPeriod.allCases) { option in
+                let selected = option == choice.wrappedValue
+                Button { choice.wrappedValue = option } label: {
+                    Text(text.period(option))
+                        .font(.system(size: 9.5, weight: .semibold))
+                        .foregroundStyle(selected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+                        .lineLimit(1)
+                        .padding(.horizontal, 7)
+                        .frame(height: 14)
+                        .background(.white.opacity(selected ? 0.2 : 0), in: Capsule())
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+        }
+        .padding(1.5)
+        .background(.white.opacity(0.08), in: Capsule())
     }
 
     private func caption(byCost: Bool) -> String {
@@ -1198,6 +1307,7 @@ private struct NotchAgentActivityCard: View {
     let snapshot: AgentUsageSnapshot
     let text: NotchAgentStrings
     @State private var hovered: Date?
+    @Environment(\.notchAgentsLockScreen) private var lockScreen
     @Environment(\.locale) private var locale
 
     /// Days in a row with any use, counting today only once it has some.
@@ -1211,7 +1321,7 @@ private struct NotchAgentActivityCard: View {
     }
 
     var body: some View {
-        let byCost = snapshot.days.allSatisfy { $0.total.unpriced == 0 }
+        let byCost = snapshot.days.allSatisfy { $0.total.unpriced == 0 } && lockScreen?.hidesAmounts != true
         NotchAgentCardChrome {
             VStack(alignment: .leading, spacing: 6) {
                 NotchAgentCardHeader(title: text.activityCard, symbol: NotchAgentCard.activity.symbol) {
