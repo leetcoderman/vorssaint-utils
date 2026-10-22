@@ -684,6 +684,7 @@ struct NotchSettings: View {
                 }
                 switchRow("speaker.wave.2", locked.sounds, caption: locked.soundsHint, isOn: $lockSounds)
             }
+            if lockScreen { NotchLockScreenWidgetSettings() }
         }
     }
 
