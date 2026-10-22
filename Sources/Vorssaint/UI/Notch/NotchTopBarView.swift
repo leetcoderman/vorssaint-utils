@@ -6,7 +6,7 @@ import SwiftUI
 
 /// The open island's bar of pages, as the menu bar panel's icon strip is:
 /// each page keeps its own colour, and its icon shows what the page holds
-/// at a glance. Settings ends the bar and opens the Settings window.
+/// at a glance. Settings opens the Settings window, and Quit ends the bar.
 struct NotchTopBarView: View {
     @ObservedObject var service: NotchService
     @ObservedObject private var l10n = L10n.shared
@@ -41,7 +41,16 @@ struct NotchTopBarView: View {
                 if item == .settings { Spacer(minLength: 4) }
                 button(item, label: labels)
             }
+            quitButton
         }
+    }
+
+    /// Quits at once, beside Settings, as the menu bar panel's footer does.
+    private var quitButton: some View {
+        NotchTopBarButton(item: nil, tint: NotchTopBarPalette.red, selected: false, showsLabel: false,
+                          title: l10n.s.panelQuit, badge: nil, dot: false, dimmed: false,
+                          glyph: { Image(systemName: "power") },
+                          action: { NSApp.terminate(nil) }, secondary: nil)
     }
 
     private func button(_ item: NotchTopBarItem, label: Bool) -> some View {
@@ -134,7 +143,8 @@ struct NotchTopBarView: View {
 }
 
 private struct NotchTopBarButton<Glyph: View>: View {
-    let item: NotchTopBarItem
+    /// Nil for the Quit button, which is no item of the bar.
+    let item: NotchTopBarItem?
     let tint: Color
     let selected: Bool
     let showsLabel: Bool
@@ -158,7 +168,7 @@ private struct NotchTopBarButton<Glyph: View>: View {
                     .foregroundStyle(tint.opacity(selected || hovered ? 1 : dimmed ? 0.45 : 0.62))
                     .frame(minWidth: 20)
                     .contentTransition(.symbolEffect(.replace))
-                if selected, showsLabel, item != .settings {
+                if selected, showsLabel, let item, item != .settings {
                     Text(title)
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(tint)
