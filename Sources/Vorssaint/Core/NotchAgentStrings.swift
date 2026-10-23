@@ -1932,3 +1932,335 @@ extension NotchAgentStrings {
         restingAlmostOut: "快將用完",
         restingWindowFormat: "%1$@：%2$@")
 }
+
+/// The words of a notice that an agent waits on the person, and of its
+/// settings.
+struct AgentAttentionStrings {
+    let waitingFormat: String
+    let pausedFormat: String
+    let maybeWaitingFormat: String
+    let manyWaitingFormat: String
+    let approveStep: String
+    let answerQuestion: String
+    let reviewPlan: String
+    let finishPrompt: String
+    let pickUp: String
+    let checkSession: String
+    let waitedFormat: String
+    let inputAlert: String
+    let inputAfter: String
+    let inputRepeat: String
+    let inputInferred: String
+    let interruptAlert: String
+
+    func waiting(_ agent: String) -> String { String(format: waitingFormat, agent) }
+    func paused(_ agent: String) -> String { String(format: pausedFormat, agent) }
+    func maybeWaiting(_ agent: String) -> String { String(format: maybeWaitingFormat, agent) }
+    func manyWaiting(_ count: Int) -> String { String(format: manyWaitingFormat, count) }
+    func waited(_ time: String) -> String { String(format: waitedFormat, time) }
+
+    /// What the person does to answer.
+    func action(_ cause: AgentAwait) -> String {
+        switch cause {
+        case .permission: return approveStep
+        case .question: return answerQuestion
+        case .plan: return reviewPlan
+        case .dialog: return finishPrompt
+        case .interrupted: return pickUp
+        }
+    }
+}
+
+extension FeatureStrings {
+    static func agentAttention(_ language: AppLanguage) -> AgentAttentionStrings {
+        switch language {
+        case .enUS: return .enUS
+        case .ptBR: return .ptBR
+        case .es: return .es
+        case .sk: return .sk
+        case .de: return .de
+        case .fr: return .fr
+        case .it: return .it
+        case .ru: return .ru
+        case .tr: return .tr
+        case .ja: return .ja
+        case .ko: return .ko
+        case .uk: return .uk
+        case .zhHans: return .zhHans
+        case .zhTW: return .zhTW
+        case .zhHK: return .zhHK
+        }
+    }
+}
+
+extension AgentAttentionStrings {
+    static let enUS = AgentAttentionStrings(
+        waitingFormat: "%@ is waiting on you",
+        pausedFormat: "%@ is paused",
+        maybeWaitingFormat: "%@ may be waiting",
+        manyWaitingFormat: "%d agents are waiting on you",
+        approveStep: "Approve a step",
+        answerQuestion: "Answer a question",
+        reviewPlan: "Review the plan",
+        finishPrompt: "Finish a prompt",
+        pickUp: "Pick up where you left off",
+        checkSession: "Check the session",
+        waitedFormat: "Waiting %@",
+        inputAlert: "When an agent is waiting on you",
+        inputAfter: "Remind after",
+        inputRepeat: "Keep reminding",
+        inputInferred: "Also when it might be waiting",
+        interruptAlert: "When a task is interrupted")
+
+    static let ptBR = AgentAttentionStrings(
+        waitingFormat: "%@ está esperando por você",
+        pausedFormat: "%@ está pausado",
+        maybeWaitingFormat: "%@ pode estar esperando",
+        manyWaitingFormat: "%d agentes estão esperando por você",
+        approveStep: "Aprove uma etapa",
+        answerQuestion: "Responda a uma pergunta",
+        reviewPlan: "Revise o plano",
+        finishPrompt: "Conclua um aviso",
+        pickUp: "Continue de onde parou",
+        checkSession: "Confira a sessão",
+        waitedFormat: "Esperando há %@",
+        inputAlert: "Quando um agente espera por você",
+        inputAfter: "Lembrar depois de",
+        inputRepeat: "Continuar lembrando",
+        inputInferred: "Também quando pode estar esperando",
+        interruptAlert: "Quando uma tarefa é interrompida")
+
+    static let es = AgentAttentionStrings(
+        waitingFormat: "%@ te está esperando",
+        pausedFormat: "%@ está en pausa",
+        maybeWaitingFormat: "%@ puede estar esperando",
+        manyWaitingFormat: "%d agentes te están esperando",
+        approveStep: "Aprueba un paso",
+        answerQuestion: "Responde una pregunta",
+        reviewPlan: "Revisa el plan",
+        finishPrompt: "Completa un aviso",
+        pickUp: "Retoma donde lo dejaste",
+        checkSession: "Revisa la sesión",
+        waitedFormat: "Esperando %@",
+        inputAlert: "Cuando un agente te espera",
+        inputAfter: "Recordar después de",
+        inputRepeat: "Seguir recordando",
+        inputInferred: "También cuando quizá esté esperando",
+        interruptAlert: "Cuando se interrumpe una tarea")
+
+    static let sk = AgentAttentionStrings(
+        waitingFormat: "%@ na vás čaká",
+        pausedFormat: "%@ je pozastavený",
+        maybeWaitingFormat: "%@ možno čaká",
+        manyWaitingFormat: "Agenti, ktorí na vás čakajú: %d",
+        approveStep: "Schváľte krok",
+        answerQuestion: "Odpovedzte na otázku",
+        reviewPlan: "Pozrite si plán",
+        finishPrompt: "Dokončite výzvu",
+        pickUp: "Pokračujte, kde ste skončili",
+        checkSession: "Pozrite si reláciu",
+        waitedFormat: "Čaká %@",
+        inputAlert: "Keď na vás agent čaká",
+        inputAfter: "Pripomenúť po",
+        inputRepeat: "Pripomínať znova",
+        inputInferred: "Aj keď možno čaká",
+        interruptAlert: "Keď sa úloha preruší")
+
+    static let de = AgentAttentionStrings(
+        waitingFormat: "%@ wartet auf dich",
+        pausedFormat: "%@ ist pausiert",
+        maybeWaitingFormat: "%@ wartet vielleicht",
+        manyWaitingFormat: "%d Agenten warten auf dich",
+        approveStep: "Gib einen Schritt frei",
+        answerQuestion: "Beantworte eine Frage",
+        reviewPlan: "Prüfe den Plan",
+        finishPrompt: "Schließe eine Abfrage ab",
+        pickUp: "Mach weiter, wo du warst",
+        checkSession: "Sieh in die Sitzung",
+        waitedFormat: "Wartet seit %@",
+        inputAlert: "Wenn ein Agent auf dich wartet",
+        inputAfter: "Erinnern nach",
+        inputRepeat: "Weiter erinnern",
+        inputInferred: "Auch wenn er vielleicht wartet",
+        interruptAlert: "Wenn eine Aufgabe unterbrochen wird")
+
+    static let fr = AgentAttentionStrings(
+        waitingFormat: "%@ vous attend",
+        pausedFormat: "%@ est en pause",
+        maybeWaitingFormat: "%@ attend peut-être",
+        manyWaitingFormat: "%d agents vous attendent",
+        approveStep: "Approuvez une étape",
+        answerQuestion: "Répondez à une question",
+        reviewPlan: "Relisez le plan",
+        finishPrompt: "Terminez une invite",
+        pickUp: "Reprenez là où vous en étiez",
+        checkSession: "Consultez la session",
+        waitedFormat: "En attente depuis %@",
+        inputAlert: "Quand un agent vous attend",
+        inputAfter: "Rappeler après",
+        inputRepeat: "Rappeler encore",
+        inputInferred: "Aussi quand il attend peut-être",
+        interruptAlert: "Quand une tâche est interrompue")
+
+    static let it = AgentAttentionStrings(
+        waitingFormat: "%@ ti sta aspettando",
+        pausedFormat: "%@ è in pausa",
+        maybeWaitingFormat: "%@ potrebbe aspettare",
+        manyWaitingFormat: "%d agenti ti stanno aspettando",
+        approveStep: "Approva un passaggio",
+        answerQuestion: "Rispondi a una domanda",
+        reviewPlan: "Rivedi il piano",
+        finishPrompt: "Completa una richiesta",
+        pickUp: "Riprendi da dove eri rimasto",
+        checkSession: "Controlla la sessione",
+        waitedFormat: "In attesa da %@",
+        inputAlert: "Quando un agente ti aspetta",
+        inputAfter: "Ricorda dopo",
+        inputRepeat: "Continua a ricordare",
+        inputInferred: "Anche quando potrebbe aspettare",
+        interruptAlert: "Quando un’attività viene interrotta")
+
+    static let ru = AgentAttentionStrings(
+        waitingFormat: "%@ ждёт вас",
+        pausedFormat: "%@ на паузе",
+        maybeWaitingFormat: "%@, возможно, ждёт",
+        manyWaitingFormat: "Вас ждут агенты: %d",
+        approveStep: "Одобрите шаг",
+        answerQuestion: "Ответьте на вопрос",
+        reviewPlan: "Проверьте план",
+        finishPrompt: "Завершите запрос",
+        pickUp: "Продолжите с того же места",
+        checkSession: "Загляните в сессию",
+        waitedFormat: "Ждёт %@",
+        inputAlert: "Когда агент ждёт вас",
+        inputAfter: "Напомнить через",
+        inputRepeat: "Напоминать снова",
+        inputInferred: "И когда он, возможно, ждёт",
+        interruptAlert: "Когда задача прервана")
+
+    static let tr = AgentAttentionStrings(
+        waitingFormat: "%@ sizi bekliyor",
+        pausedFormat: "%@ duraklatıldı",
+        maybeWaitingFormat: "%@ bekliyor olabilir",
+        manyWaitingFormat: "%d ajan sizi bekliyor",
+        approveStep: "Bir adımı onaylayın",
+        answerQuestion: "Bir soruyu yanıtlayın",
+        reviewPlan: "Planı gözden geçirin",
+        finishPrompt: "Bir istemi tamamlayın",
+        pickUp: "Kaldığınız yerden devam edin",
+        checkSession: "Oturuma bakın",
+        waitedFormat: "%@ bekliyor",
+        inputAlert: "Bir ajan sizi beklediğinde",
+        inputAfter: "Şu süreden sonra hatırlat",
+        inputRepeat: "Hatırlatmaya devam et",
+        inputInferred: "Bekliyor olabileceğinde de",
+        interruptAlert: "Bir görev yarıda kesildiğinde")
+
+    static let ja = AgentAttentionStrings(
+        waitingFormat: "%@があなたを待っています",
+        pausedFormat: "%@は一時停止中です",
+        maybeWaitingFormat: "%@が待っているかもしれません",
+        manyWaitingFormat: "%d個のエージェントがあなたを待っています",
+        approveStep: "ステップを承認",
+        answerQuestion: "質問に回答",
+        reviewPlan: "プランを確認",
+        finishPrompt: "プロンプトを完了",
+        pickUp: "中断したところから再開",
+        checkSession: "セッションを確認",
+        waitedFormat: "%@待機中",
+        inputAlert: "エージェントがあなたを待っているとき",
+        inputAfter: "リマインドまでの時間",
+        inputRepeat: "繰り返しリマインド",
+        inputInferred: "待っている可能性があるときも",
+        interruptAlert: "タスクが中断されたとき")
+
+    static let ko = AgentAttentionStrings(
+        waitingFormat: "%@이(가) 기다리고 있습니다",
+        pausedFormat: "%@ 일시 중지됨",
+        maybeWaitingFormat: "%@이(가) 기다리고 있을 수 있습니다",
+        manyWaitingFormat: "에이전트 %d개가 기다리고 있습니다",
+        approveStep: "단계 승인",
+        answerQuestion: "질문에 답변",
+        reviewPlan: "계획 검토",
+        finishPrompt: "프롬프트 완료",
+        pickUp: "멈춘 곳에서 이어서",
+        checkSession: "세션 확인",
+        waitedFormat: "%@ 대기 중",
+        inputAlert: "에이전트가 기다릴 때",
+        inputAfter: "알림 시점",
+        inputRepeat: "계속 알림",
+        inputInferred: "기다리고 있을 수 있을 때도",
+        interruptAlert: "작업이 중단되었을 때")
+
+    static let uk = AgentAttentionStrings(
+        waitingFormat: "%@ чекає на вас",
+        pausedFormat: "%@ на паузі",
+        maybeWaitingFormat: "%@, можливо, чекає",
+        manyWaitingFormat: "На вас чекають агенти: %d",
+        approveStep: "Схваліть крок",
+        answerQuestion: "Дайте відповідь на запитання",
+        reviewPlan: "Перегляньте план",
+        finishPrompt: "Завершіть запит",
+        pickUp: "Продовжте з того ж місця",
+        checkSession: "Перегляньте сесію",
+        waitedFormat: "Чекає %@",
+        inputAlert: "Коли агент чекає на вас",
+        inputAfter: "Нагадати через",
+        inputRepeat: "Нагадувати знову",
+        inputInferred: "І коли він, можливо, чекає",
+        interruptAlert: "Коли завдання перервано")
+
+    static let zhHans = AgentAttentionStrings(
+        waitingFormat: "%@ 在等你",
+        pausedFormat: "%@ 已暂停",
+        maybeWaitingFormat: "%@ 可能在等你",
+        manyWaitingFormat: "%d 个智能体在等你",
+        approveStep: "批准一个步骤",
+        answerQuestion: "回答一个问题",
+        reviewPlan: "查看计划",
+        finishPrompt: "完成一个提示",
+        pickUp: "从中断处继续",
+        checkSession: "查看会话",
+        waitedFormat: "已等待 %@",
+        inputAlert: "智能体在等你时",
+        inputAfter: "提醒时间",
+        inputRepeat: "持续提醒",
+        inputInferred: "可能在等你时也提醒",
+        interruptAlert: "任务被中断时")
+
+    static let zhTW = AgentAttentionStrings(
+        waitingFormat: "%@ 在等你",
+        pausedFormat: "%@ 已暫停",
+        maybeWaitingFormat: "%@ 可能在等你",
+        manyWaitingFormat: "%d 個代理在等你",
+        approveStep: "核准一個步驟",
+        answerQuestion: "回答一個問題",
+        reviewPlan: "查看計畫",
+        finishPrompt: "完成一個提示",
+        pickUp: "從中斷處繼續",
+        checkSession: "查看工作階段",
+        waitedFormat: "已等待 %@",
+        inputAlert: "代理在等你時",
+        inputAfter: "提醒時間",
+        inputRepeat: "持續提醒",
+        inputInferred: "可能在等你時也提醒",
+        interruptAlert: "工作被中斷時")
+
+    static let zhHK = AgentAttentionStrings(
+        waitingFormat: "%@ 在等你",
+        pausedFormat: "%@ 已暫停",
+        maybeWaitingFormat: "%@ 可能在等你",
+        manyWaitingFormat: "%d 個代理在等你",
+        approveStep: "批准一個步驟",
+        answerQuestion: "回答一個問題",
+        reviewPlan: "查看計劃",
+        finishPrompt: "完成一個提示",
+        pickUp: "從中斷處繼續",
+        checkSession: "查看工作階段",
+        waitedFormat: "已等待 %@",
+        inputAlert: "代理在等你時",
+        inputAfter: "提醒時間",
+        inputRepeat: "持續提醒",
+        inputInferred: "可能在等你時也提醒",
+        interruptAlert: "工作被中斷時")
+}

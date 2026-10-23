@@ -21,6 +21,7 @@ enum NotchAgentTests {
         openCodeParsing(suite)
         CopilotAgentTests.run(suite)
         HarnessReaderContractTests.run(suite)
+        AgentAttentionTests.run(suite)
         timestamps(suite)
         summary(suite)
         AgentUsageSummaryCacheTests.run(suite)
@@ -1553,7 +1554,9 @@ enum NotchAgentTests {
         _ = AgentLogParser.parseOpenCode(line(#"{"id":"u1","session_id":"s_w","time_created":1790091000000,"role":"user","time":{"created":1790091000000}}"#), state: &waiting, now: now)
         _ = AgentLogParser.parseOpenCode(line(#"{"id":"a1","session_id":"s_w","time_created":1790091001000,"role":"assistant","tokens":{"input":5},"finish":"tool-calls","time":{"created":1790091001000,"completed":1790091005000}}"#), state: &waiting, now: now)
         let interrupted = AgentLogParser.parseOpenCode(line(#"{"id":"i1","session_id":"s_w","time_created":1790091006000,"role":"idle","outcome":"interrupted","time":{"created":1790091006000}}"#), state: &waiting, now: now)
-        suite.expect(interrupted == [.turnEnded(at(1_790_091_006), completed: false, duration: 6)],
+        // Interrupted, it also leaves the work for the person to pick up.
+        suite.expect(interrupted == [.turnEnded(at(1_790_091_006), completed: false, duration: 6),
+                                     .turnAwaiting(.interrupted, at(1_790_091_006), inferred: false)],
                      "an idle row ends the turn, finished only when it succeeded")
     }
 

@@ -15,6 +15,7 @@ enum AppSoundTests {
         starts(suite)
         rules(suite)
         ruleDefaults(suite)
+        agentMoments(suite)
     }
 
     private static func rules(_ suite: TestSuite) {
@@ -82,6 +83,30 @@ enum AppSoundTests {
         suite.expect(AppSoundRules.output(in: defaults) == .alerts, "the alert device is kept")
         defaults.set("speakers", forKey: DefaultsKey.soundsOutput)
         suite.expect(AppSoundRules.output(in: defaults) == .current, "an unknown output falls back to the current one")
+    }
+
+    /// The agent moments beyond starting and finishing: each in the agents
+    /// group, off until asked, with its own sound and words.
+    private static func agentMoments(_ suite: TestSuite) {
+        let added: [AppSound] = [.agentsAllDone, .agentNeedsInput, .agentInterrupted, .agentLimitWarning,
+                                 .agentLimitReset, .agentBudgetReached]
+        for sound in added {
+            suite.expect(sound.group == .agents && sound.feature == .notchAgents
+                            && Defaults.registeredDefaults[sound.enabledKey] as? Bool == false,
+                         "\(sound.rawValue) is an agent moment, off until asked")
+            for language in AppLanguage.allCases {
+                let words = AppSoundGroup.agents.strings(language).moments[sound]
+                suite.expect(words.map { !$0.title.contains("—") && !$0.caption.contains("—") } == true,
+                             "\(sound.rawValue) has its words in \(language.rawValue), without long dashes")
+            }
+        }
+        suite.expect(AppSound.agentNeedsInput.defaultChoice == "tone:Modern/Input"
+                        && AppSound.agentNeedsInput.defaultChoice != AppSound.agentFinished.defaultChoice,
+                     "a wait reminds with a tone of its own, apart from a finish")
+        suite.expect(AppSound.agentInterrupted.defaultChoice == "Basso", "work that stopped sounds low")
+        suite.expect(Set(AppSound.allCases.filter { $0.group == .agents }.map(\.defaultChoice)).count
+                        == AppSound.allCases.filter { $0.group == .agents }.count,
+                     "every agent moment sounds different by default")
     }
 
     private static func strings(_ suite: TestSuite) {

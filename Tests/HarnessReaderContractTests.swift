@@ -36,8 +36,9 @@ enum HarnessReaderContractTests {
                      "a Claude prompt opens its turn")
         let interrupted = line(#"{"type":"user","timestamp":1790088010,"sessionId":"s","message":{"content":"[Request interrupted by user for now"}}"#)
         suite.expect(reader.parse(interrupted, state: &state, now: now)
-                        == [.turnEnded(nil, completed: false, duration: nil)],
-                     "an interrupted Claude prompt ends its turn unfinished")
+                        == [.turnEnded(nil, completed: false, duration: nil),
+                            .turnAwaiting(.interrupted, Date(timeIntervalSince1970: 1_790_088_010), inferred: false)],
+                     "an interrupted Claude prompt ends its turn unfinished and leaves its work waiting")
         let sidechain = line(#"{"type":"user","timestamp":1790088020,"sessionId":"s","isSidechain":true,"message":{"content":"work"}}"#)
         suite.expect(reader.parse(sidechain, state: &state, now: now).isEmpty,
                      "a Claude subagent prompt never opens a turn")

@@ -287,7 +287,8 @@ enum AgentUsageArchiveTests {
             ("AgentUsageArchive.Contents", labels(contents), ["providers", "store", "cursors"]),
             ("AgentUsageStore", labels(first),
              ["records", "billables", "sources", "index", "summary", "limits", "codexPlan", "codexPlanObserved",
-              "turns", "waiting", "registered", "settled", "replies", "reportsTransitions", "turnStarted"]),
+              "turns", "waiting", "registered", "settled", "replies", "attention", "reportsTransitions",
+              "turnStarted", "turnInterrupted"]),
             ("AgentUsageStore.Saved", labels(sample),
              ["records", "limits", "codexPlan", "codexPlanObserved", "turns", "waiting"]),
             ("AgentUsageStore.Saved.Record", labels(sampleRecord), ["key", "record", "billable", "sources"]),
@@ -310,7 +311,8 @@ enum AgentUsageArchiveTests {
              ["session", "project", "model", "turnOpen", "sawUsageRecords", "lastTotal", "fast",
               "codexSubagent", "codexHeaderRead", "codexRoot", "codexTotalsSession", "codexApp",
               "copilotTotals", "copilotRequests", "copilotRequestModels", "copilotReportedRequests",
-              "copilotTurnID", "copilotFinalResponse", "parentSession", "openCodeSessions", "runningCommands"])
+              "copilotTurnID", "copilotFinalResponse", "parentSession", "openCodeSessions", "runningCommands",
+              "awaitedTools", "pendingTools", "codexPendingCalls", "codexApprovalPolicy", "codexAsked"])
         ]
         for layout in layouts {
             suite.expect(layout.stored == layout.written,

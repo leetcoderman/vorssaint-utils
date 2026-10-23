@@ -15,19 +15,32 @@ enum AppSound: String, CaseIterable, Identifiable {
     case agentFinished
     /// An agent's turn opens.
     case agentStarted
+    /// The last of several agents working together finishes.
+    case agentsAllDone
+    /// An agent waits on your answer or approval, and at each reminder.
+    case agentNeedsInput
+    /// An agent's turn is interrupted, or an error stops it.
+    case agentInterrupted
+    /// An agent nears a plan limit, or one renews.
+    case agentLimitWarning
+    case agentLimitReset
+    /// The day's API value passes its budget.
+    case agentBudgetReached
 
     var id: String { rawValue }
 
     var group: AppSoundGroup {
         switch self {
-        case .agentFinished, .agentStarted: return .agents
+        case .agentFinished, .agentStarted, .agentsAllDone, .agentNeedsInput, .agentInterrupted,
+             .agentLimitWarning, .agentLimitReset, .agentBudgetReached: return .agents
         }
     }
 
     /// The feature whose events play it; it is offered only while installed.
     var feature: AppFeature {
         switch self {
-        case .agentFinished, .agentStarted: return .notchAgents
+        case .agentFinished, .agentStarted, .agentsAllDone, .agentNeedsInput, .agentInterrupted,
+             .agentLimitWarning, .agentLimitReset, .agentBudgetReached: return .notchAgents
         }
     }
 
@@ -35,22 +48,35 @@ enum AppSound: String, CaseIterable, Identifiable {
         switch self {
         case .agentFinished: return "checkmark.circle"
         case .agentStarted: return "play.circle"
+        case .agentsAllDone: return "checklist.checked"
+        case .agentNeedsInput: return "hand.raised"
+        case .agentInterrupted: return "pause.circle"
+        case .agentLimitWarning: return "exclamationmark.triangle"
+        case .agentLimitReset: return "arrow.clockwise"
+        case .agentBudgetReached: return "dollarsign.circle"
         }
     }
 
     /// A choice from `AppSoundLibrary`: a full chime for work that is done,
-    /// a lighter one for work beginning.
+    /// a lighter one for work beginning, a reminding one for a wait, and a
+    /// low one for work that stopped.
     var defaultChoice: String {
         switch self {
         case .agentFinished: return "tone:Modern/Chord"
         case .agentStarted: return "tone:Modern/Aurora"
+        case .agentsAllDone: return "tone:Modern/Complete"
+        case .agentNeedsInput: return "tone:Modern/Input"
+        case .agentInterrupted: return "Basso"
+        case .agentLimitWarning: return "tone:Modern/Pulse"
+        case .agentLimitReset: return "tone:Modern/Hello"
+        case .agentBudgetReached: return "tone:Modern/Note"
         }
     }
 
     var defaultVolume: Double {
         switch self {
-        case .agentFinished: return 1.5
-        case .agentStarted: return 1
+        case .agentFinished, .agentsAllDone, .agentNeedsInput: return 1.5
+        case .agentStarted, .agentInterrupted, .agentLimitWarning, .agentLimitReset, .agentBudgetReached: return 1
         }
     }
 
