@@ -15,12 +15,21 @@ enum AppSound: String, CaseIterable, Identifiable {
     case agentFinished
     /// An agent's turn opens.
     case agentStarted
+    /// The battery falls to the low mark while on battery.
+    case batteryLow
+    /// A charger is plugged in.
+    case chargerConnected
+    /// The charger is unplugged.
+    case chargerDisconnected
+    /// A timed Keep Awake session runs out.
+    case keepAwakeEnded
 
     var id: String { rawValue }
 
     var group: AppSoundGroup {
         switch self {
         case .agentFinished, .agentStarted: return .agents
+        case .batteryLow, .chargerConnected, .chargerDisconnected, .keepAwakeEnded: return .power
         }
     }
 
@@ -28,6 +37,8 @@ enum AppSound: String, CaseIterable, Identifiable {
     var feature: AppFeature {
         switch self {
         case .agentFinished, .agentStarted: return .notchAgents
+        case .batteryLow, .chargerConnected, .chargerDisconnected: return .monitorPower
+        case .keepAwakeEnded: return .keepAwake
         }
     }
 
@@ -35,15 +46,24 @@ enum AppSound: String, CaseIterable, Identifiable {
         switch self {
         case .agentFinished: return "checkmark.circle"
         case .agentStarted: return "play.circle"
+        case .batteryLow: return "battery.25percent"
+        case .chargerConnected: return "bolt.fill"
+        case .chargerDisconnected: return "bolt.slash"
+        case .keepAwakeEnded: return "cup.and.saucer"
         }
     }
 
     /// A choice from `AppSoundLibrary`: a full chime for work that is done,
-    /// a lighter one for work beginning.
+    /// a lighter one for work beginning. A low battery gets an alert, the
+    /// charger a short click each way.
     var defaultChoice: String {
         switch self {
         case .agentFinished: return "tone:Modern/Chord"
         case .agentStarted: return "tone:Modern/Aurora"
+        case .batteryLow: return "tone:Classic/Alert"
+        case .chargerConnected: return "tone:Modern/Input"
+        case .chargerDisconnected: return "tone:Modern/Keys"
+        case .keepAwakeEnded: return "tone:Modern/Complete"
         }
     }
 
@@ -51,6 +71,8 @@ enum AppSound: String, CaseIterable, Identifiable {
         switch self {
         case .agentFinished: return 1.5
         case .agentStarted: return 1
+        case .batteryLow: return 1.5
+        case .chargerConnected, .chargerDisconnected, .keepAwakeEnded: return 1
         }
     }
 
@@ -80,6 +102,7 @@ enum AppSound: String, CaseIterable, Identifiable {
 /// A section of the Sounds page, in page order.
 enum AppSoundGroup: String, CaseIterable, Identifiable {
     case agents
+    case power
 
     var id: String { rawValue }
 
@@ -90,6 +113,7 @@ enum AppSoundGroup: String, CaseIterable, Identifiable {
     var noteApplies: Bool {
         switch self {
         case .agents: return !NotchAgentSupport.isEnabled()
+        case .power: return !PowerSoundSupport.hasInternalBattery
         }
     }
 
@@ -97,6 +121,7 @@ enum AppSoundGroup: String, CaseIterable, Identifiable {
     func strings(_ language: AppLanguage) -> SoundGroupStrings {
         switch self {
         case .agents: return FeatureStrings.agentSounds(language)
+        case .power: return FeatureStrings.powerSounds(language)
         }
     }
 }

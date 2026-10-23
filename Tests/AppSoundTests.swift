@@ -3,6 +3,7 @@
 
 import AVFoundation
 import Foundation
+import IOKit.ps
 
 enum AppSoundTests {
     static func run(_ suite: TestSuite) {
@@ -13,6 +14,7 @@ enum AppSoundTests {
         rendering(suite)
         spacing(suite)
         starts(suite)
+        power(suite)
     }
 
     private static func strings(_ suite: TestSuite) {
@@ -217,5 +219,62 @@ enum AppSoundTests {
         store.apply([.turnActive(now.addingTimeInterval(NotchAgentSupport.idleTurn + 1))], file: "a", provider: .codex,
                     tracksTurns: true, modified: now, now: now.addingTimeInterval(NotchAgentSupport.idleTurn + 1))
         suite.expect(heard.count == 2, "work resuming after an approval is the same turn, not a new start")
+    }
+
+    private static func power(_ suite: TestSuite) {
+        let unplugged = PowerSoundReading(chargePercent: 50, externalConnected: false)
+        let plugged = PowerSoundReading(chargePercent: 50, externalConnected: true)
+        suite.expect(PowerSoundSupport.moments(from: nil, to: plugged).isEmpty,
+                     "the state at launch plays nothing")
+        suite.expect(PowerSoundSupport.moments(from: unplugged, to: plugged) == [.chargerConnected],
+                     "plugging in a charger is heard")
+        suite.expect(PowerSoundSupport.moments(from: plugged, to: unplugged) == [.chargerDisconnected],
+                     "unplugging the charger is heard")
+        suite.expect(PowerSoundSupport.moments(from: plugged, to: plugged).isEmpty,
+                     "a reading that changes nothing plays nothing")
+
+        let mark = PowerSoundSupport.lowBatteryPercent
+        let above = PowerSoundReading(chargePercent: mark + 1, externalConnected: false)
+        let low = PowerSoundReading(chargePercent: mark, externalConnected: false)
+        suite.expect(PowerSoundSupport.moments(from: above, to: low) == [.batteryLow],
+                     "the battery falling to the mark is heard")
+        suite.expect(PowerSoundSupport.moments(from: low, to: PowerSoundReading(chargePercent: mark - 1,
+                                                                               externalConnected: false)).isEmpty,
+                     "a low battery is heard once, not at every percent")
+        suite.expect(PowerSoundSupport.moments(from: PowerSoundReading(chargePercent: mark + 1, externalConnected: true),
+                                               to: PowerSoundReading(chargePercent: mark, externalConnected: true)).isEmpty,
+                     "a battery low on the charger is not a warning")
+        suite.expect(PowerSoundSupport.moments(from: PowerSoundReading(chargePercent: 5, externalConnected: true),
+                                               to: PowerSoundReading(chargePercent: 5, externalConnected: false))
+                        == [.chargerDisconnected],
+                     "unplugging an already low battery plays only the charger")
+        suite.expect(PowerSoundSupport.moments(from: PowerSoundReading(chargePercent: nil, externalConnected: false),
+                                               to: low).isEmpty,
+                     "an unknown charge does not read as a fall")
+
+        suite.expect(!PowerSoundSupport.isWanted(hasBattery: true) { _ in false },
+                     "the power sources are not watched while every power sound is off")
+        suite.expect(PowerSoundSupport.isWanted(hasBattery: true) { $0 == .chargerConnected },
+                     "one power sound switched on is enough to watch")
+        suite.expect(!PowerSoundSupport.isWanted(hasBattery: true) { $0 == .keepAwakeEnded },
+                     "Keep awake ending does not need the power sources")
+        suite.expect(!PowerSoundSupport.isWanted(hasBattery: false) { _ in true },
+                     "a Mac without a battery watches nothing")
+
+        let battery: [String: Any] = [kIOPSTypeKey: kIOPSInternalBatteryType, kIOPSCurrentCapacityKey: 3,
+                                      kIOPSMaxCapacityKey: 4, kIOPSPowerSourceStateKey: kIOPSACPowerValue]
+        let ups: [String: Any] = [kIOPSTypeKey: kIOPSUPSType, kIOPSCurrentCapacityKey: 1, kIOPSMaxCapacityKey: 1]
+        suite.expect(PowerSoundSupport.internalBattery(in: [ups, battery]).map(PowerSoundSupport.reading(from:))
+                        == PowerSoundReading(chargePercent: 75, externalConnected: true),
+                     "the internal battery is read, not a UPS")
+        suite.expect(PowerSoundSupport.internalBattery(in: [ups]) == nil, "a desktop with a UPS has no battery")
+        suite.expect(PowerSoundSupport.reading(from: [kIOPSPowerSourceStateKey: kIOPSBatteryPowerValue])
+                        == PowerSoundReading(chargePercent: nil, externalConnected: false),
+                     "a battery without a capacity has no charge")
+
+        suite.expect(Set(AppSoundGroup.power.sounds) == Set(PowerSoundSupport.sounds + [.keepAwakeEnded])
+                        && AppSound.keepAwakeEnded.feature == .keepAwake
+                        && AppSound.allCases.filter { $0.group == .power }.allSatisfy { AppSound.registeredDefaults[$0.enabledKey] as? Bool == false },
+                     "the power group holds its four moments, each off at first")
     }
 }
