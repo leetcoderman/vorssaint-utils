@@ -29,6 +29,21 @@ final class AppSoundService {
     /// The device the engine was last pointed at, so a play only moves it
     /// when the chosen output changed.
     private var device: AudioDeviceID?
+    /// Until when each moment's last sound runs, so an alarm that rings on
+    /// its own beat lets a longer sound finish.
+    private var soundingUntil: [AppSound: Date] = [:]
+    /// The last rendering of each moment, so a sound played often, as on
+    /// every snippet, is not read and rendered each time.
+    private var rendered: [AppSound: (key: RenderKey, buffer: AVAudioPCMBuffer)] = [:]
+    /// Each moment's alert sound registered with the sound server, kept for
+    /// the app's life: there are only a few.
+    private var alertIDs: [AppSound: (url: URL, id: SystemSoundID)] = [:]
+
+    private struct RenderKey: Equatable {
+        let url: URL
+        let gain: Float
+        let repeats: Int
+    }
 
     private init() {
         // The output's hardware changed under the engine: point it again
@@ -39,19 +54,52 @@ final class AppSoundService {
 
     /// Plays the sound for a moment when it is switched on and the page's
     /// rules let it: an agent's moment names its agent in `context`.
-    func play(_ sound: AppSound, context: AppSoundContext = .none, now: Date = Date()) {
-        guard AppSoundSupport.isOn(sound), AppSoundSupport.isDue(after: lastPlayed[sound], now: now),
+    /// `swapping` trades one choice for another as it plays, as the padlock
+    /// opens rather than closes on unlocking.
+    func play(_ sound: AppSound, context: AppSoundContext = .none, now: Date = Date(),
+              swapping: [AppSoundChoice: AppSoundChoice] = [:]) {
+        guard AppSoundSupport.isOn(sound),
+              AppSoundSupport.isDue(after: lastPlayed[sound], now: now, gap: sound.minimumGap),
               AppSoundRules.allows(sound, context: context) else { return }
         lastPlayed[sound] = now
-        preview(sound)
+        preview(sound, swapping: swapping)
+    }
+
+    /// Plays a moment's sound unless its last one is still sounding: the
+    /// alarm's beat, which a sound set to repeat would otherwise cut short.
+    func ring(_ sound: AppSound, now: Date = Date()) {
+        if let until = soundingUntil[sound], now < until { return }
+        play(sound, now: now)
+    }
+
+    /// Cuts a moment's sound short.
+    func stop(_ sound: AppSound) {
+        players[sound]?.stop()
+        soundingUntil[sound] = nil
+    }
+
+    /// Readies a moment's sound so its first play does not wait on the
+    /// file, for one heard on a keystroke.
+    func prepare(_ sound: AppSound) {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { self.prepare(sound) }
+            return
+        }
+        guard let choice = AppSoundSupport.choice(sound, library: library), let url = library.url(for: choice) else { return }
+        if AppSoundSupport.playsAsAlert(sound, choice: choice) { _ = alertID(for: sound, url: url) } else { _ = buffer(for: sound, url: url) }
     }
 
     /// Plays the chosen sound as set, switched on or not.
-    func preview(_ sound: AppSound) {
-        guard let choice = AppSoundSupport.choice(sound, library: library),
-              let url = library.url(for: choice),
-              let buffer = Self.render(url, gain: Float(AppSoundSupport.volume(sound)),
-                                       repeats: AppSoundSupport.repeats(sound)) else { return }
+    func preview(_ sound: AppSound, swapping: [AppSoundChoice: AppSoundChoice] = [:]) {
+        guard let chosen = AppSoundSupport.choice(sound, library: library) else { return }
+        let choice = swapping[chosen] ?? chosen
+        guard let url = library.url(for: choice) else { return }
+        if AppSoundSupport.playsAsAlert(sound, choice: choice) {
+            playAlert(sound, url: url)
+            return
+        }
+        guard let buffer = buffer(for: sound, url: url) else { return }
+        soundingUntil[sound] = Date().addingTimeInterval(Double(buffer.frameLength) / buffer.format.sampleRate)
         route()
         let player = players[sound] ?? attach(for: sound, format: buffer.format)
         player.stop()
@@ -64,6 +112,43 @@ final class AppSoundService {
             DispatchQueue.main.async { self?.finished() }
         }
         player.play()
+    }
+
+    private func buffer(for sound: AppSound, url: URL) -> AVAudioPCMBuffer? {
+        let key = RenderKey(url: url, gain: Float(AppSoundSupport.volume(sound)), repeats: AppSoundSupport.repeats(sound))
+        if let cached = rendered[sound], cached.key == key { return cached.buffer }
+        guard let buffer = Self.render(url, gain: key.gain, repeats: key.repeats) else { return nil }
+        rendered[sound] = (key, buffer)
+        return buffer
+    }
+
+    /// The way the padlock and the snippet sound always played: through the
+    /// sound server, on the sound effects output at the alert volume.
+    private func playAlert(_ sound: AppSound, url: URL) {
+        guard let id = alertID(for: sound, url: url) else { return }
+        if sound == .screenLock {
+            AudioServicesPlaySystemSoundWithCompletion(id, nil)
+        } else {
+            // An alert, so it flashes the screen when Accessibility asks.
+            AudioServicesPlayAlertSoundWithCompletion(id, nil)
+        }
+    }
+
+    private func alertID(for sound: AppSound, url: URL) -> SystemSoundID? {
+        if let alert = alertIDs[sound], alert.url == url { return alert.id }
+        var id: SystemSoundID = 0
+        guard AudioServicesCreateSystemSoundID(url as CFURL, &id) == noErr else { return nil }
+        if sound == .screenLock {
+            // Not an interface sound, so the padlock plays even with
+            // interface sound effects off in System Settings. The alert
+            // volume and the sound effects output still apply.
+            var interface: UInt32 = 0
+            AudioServicesSetProperty(kAudioServicesPropertyIsUISound, UInt32(MemoryLayout<SystemSoundID>.size), &id,
+                                     UInt32(MemoryLayout<UInt32>.size), &interface)
+        }
+        if let old = alertIDs[sound] { AudioServicesDisposeSystemSoundID(old.id) }
+        alertIDs[sound] = (url, id)
+        return id
     }
 
     private func attach(for sound: AppSound, format: AVAudioFormat) -> AVAudioPlayerNode {

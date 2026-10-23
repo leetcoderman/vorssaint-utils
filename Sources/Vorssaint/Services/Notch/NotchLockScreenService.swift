@@ -2,7 +2,6 @@
 // Copyright (C) 2026 Vorssaint
 
 import AppKit
-import AudioToolbox
 import SwiftUI
 
 /// The island over the lock screen: the calendar over music on a stage
@@ -57,17 +56,11 @@ final class NotchLockScreenService {
         hide(unlocking: false, stopsSources: true)
     }
 
+    /// The sound chosen on the Sounds page; the padlock, by default, opens
+    /// on unlocking rather than closing.
     func playSound(locking: Bool) {
-        guard let url = NotchLockScreenSupport.soundURL(locking: locking) else { return }
-        var sound: SystemSoundID = 0
-        guard AudioServicesCreateSystemSoundID(url as CFURL, &sound) == noErr else { return }
-        // Asked for here, so it plays even with interface sound effects off
-        // in System Settings. The alert volume and the sound effects output
-        // still apply, as they do to the Mac's own sounds.
-        var interface: UInt32 = 0
-        AudioServicesSetProperty(kAudioServicesPropertyIsUISound, UInt32(MemoryLayout<SystemSoundID>.size), &sound,
-                                 UInt32(MemoryLayout<UInt32>.size), &interface)
-        AudioServicesPlaySystemSoundWithCompletion(sound) { AudioServicesDisposeSystemSoundID(sound) }
+        AppSoundService.shared.play(.screenLock,
+                                    swapping: locking ? [:] : [AppSoundChoice.padlockClosing: AppSoundChoice.padlockOpening])
     }
 
     /// Where each part goes on the displays as they are now.
