@@ -453,12 +453,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate, NSW
             switch reason {
             case .timer:
                 Notifier.post(title: strings.notifySessionEndedTitle, body: strings.notifySessionEndedBody)
+                AppSoundService.shared.play(.keepAwakeEnded)
             case .battery:
                 Notifier.post(title: strings.notifyBatteryTitle, body: strings.notifyBatteryBody)
             default:
                 break
             }
         }
+        PowerSoundWatcher.shared.start()
     }
 
     // MARK: - Main panel
