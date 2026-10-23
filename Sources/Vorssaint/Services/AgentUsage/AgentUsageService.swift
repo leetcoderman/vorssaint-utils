@@ -736,8 +736,17 @@ final class AgentUsageService: ObservableObject {
         let session = readerSession
         DispatchQueue.main.async { [weak self] in
             guard let self, self.running, self.session == session, self.providers.contains(provider) else { return }
-            AppSoundService.shared.play(.agentStarted)
+            AppSoundService.shared.play(.agentStarted, context: self.soundContext(provider))
         }
+    }
+
+    /// The agent a sound is about, and where its sessions run when the live
+    /// ones all agree: a turn's place is often learned after it opens, and
+    /// a finished one may already be gone, so it is a hint.
+    private func soundContext(_ provider: AgentProvider) -> AppSoundContext {
+        let places = snapshot.live.filter { $0.provider == provider }.map(\.place)
+        let place = places.first.flatMap { first in places.allSatisfy { $0 == first } ? first : nil }
+        return AppSoundContext(provider: provider, place: place)
     }
 
     /// Filters by the person's choices on the main thread, where they live.
@@ -748,7 +757,9 @@ final class AgentUsageService: ObservableObject {
             guard let self, self.running, self.session == session else { return }
             switch event {
             case .finished(let provider, let duration, _, _, _):
-                if self.providers.contains(provider) { AppSoundService.shared.play(.agentFinished) }
+                if self.providers.contains(provider) {
+                    AppSoundService.shared.play(.agentFinished, context: self.soundContext(provider))
+                }
                 guard self.providers.contains(provider), let minimum = NotchAgentSupport.finishMinimum(),
                       duration >= minimum else { return }
             case .limitWarning(let provider, _), .limitReset(let provider, _):
