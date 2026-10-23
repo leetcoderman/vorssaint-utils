@@ -13,7 +13,14 @@ struct AppSoundChoice: Hashable, Identifiable {
         case tone
         /// Sounds in ~/Library/Sounds and /Library/Sounds.
         case user
+        /// A sound macOS keeps elsewhere that one moment made before the
+        /// Sounds page, offered only to that moment.
+        case builtIn = "app"
     }
+
+    /// The padlock as the Mac locks, and as it unlocks.
+    static let padlockClosing = AppSoundChoice(source: .builtIn, name: "lock")
+    static let padlockOpening = AppSoundChoice(source: .builtIn, name: "unlock")
 
     let source: Source
     /// A file name without extension for `system`, a path under the tone
@@ -59,13 +66,26 @@ final class AppSoundLibrary {
     let userFolders: [URL]
     private(set) var files: [AppSoundChoice: URL] = [:]
     private(set) var choices: [AppSoundChoice] = []
+    /// Found by `url(for:)` but never listed in `choices`.
+    let builtIns: [AppSoundChoice: URL]
 
     init(systemFolder: URL = AppSoundLibrary.systemFolder, toneFolder: URL = AppSoundLibrary.toneFolder,
-         userFolders: [URL] = AppSoundLibrary.userFolders(), fileManager: FileManager = .default) {
+         userFolders: [URL] = AppSoundLibrary.userFolders(),
+         builtIns: [AppSoundChoice: URL] = AppSoundLibrary.builtInSounds(), fileManager: FileManager = .default) {
         self.systemFolder = systemFolder
         self.toneFolder = toneFolder
         self.userFolders = userFolders
+        self.builtIns = builtIns
         reload(fileManager: fileManager)
+    }
+
+    /// The padlock from SecurityInterface, or the alert sounds that stand
+    /// in for it.
+    static func builtInSounds() -> [AppSoundChoice: URL] {
+        var sounds: [AppSoundChoice: URL] = [:]
+        sounds[AppSoundChoice.padlockClosing] = NotchLockScreenSupport.soundURL(locking: true)
+        sounds[AppSoundChoice.padlockOpening] = NotchLockScreenSupport.soundURL(locking: false)
+        return sounds
     }
 
     static func userFolders(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> [URL] {
@@ -103,7 +123,7 @@ final class AppSoundLibrary {
         choices = order
     }
 
-    func url(for choice: AppSoundChoice) -> URL? { files[choice] }
+    func url(for choice: AppSoundChoice) -> URL? { files[choice] ?? builtIns[choice] }
 
     func choices(from source: AppSoundChoice.Source) -> [AppSoundChoice] {
         choices.filter { $0.source == source }
@@ -120,6 +140,8 @@ final class AppSoundLibrary {
             return base.replacingOccurrences(of: "-EncoreInfinitum", with: "")
         case .user:
             return (choice.name as NSString).deletingPathExtension
+        case .builtIn:
+            return FeatureStrings.padlockSound(language).name
         }
     }
 }

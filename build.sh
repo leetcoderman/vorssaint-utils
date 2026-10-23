@@ -291,6 +291,8 @@ if (( TEST )); then
         Sources/Vorssaint/Core/ClaudeSeatStrings.swift
         Sources/Vorssaint/Core/SoundStrings.swift
         Sources/Vorssaint/Core/AgentSoundStrings.swift
+        Sources/Vorssaint/Core/AlertMomentSoundStrings.swift
+        Sources/Vorssaint/Core/TypingSoundStrings.swift
         Sources/Vorssaint/Core/NotchLimitVisibilityStrings.swift
         Sources/Vorssaint/Services/Notch/NotchAgentSupport.swift
         Sources/Vorssaint/Services/Notch/NotchLimitVisibility.swift

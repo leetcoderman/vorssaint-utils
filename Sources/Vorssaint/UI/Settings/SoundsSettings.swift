@@ -106,7 +106,7 @@ private struct AppSoundRow: View {
         self.language = language
         self.libraryVersion = libraryVersion
         self.add = add
-        _on = AppStorage(wrappedValue: false, sound.enabledKey)
+        _on = AppStorage(wrappedValue: sound.defaultEnabled, sound.enabledKey)
         _name = AppStorage(wrappedValue: sound.defaultChoice, sound.nameKey)
         _volume = AppStorage(wrappedValue: sound.defaultVolume, sound.volumeKey)
         _repeats = AppStorage(wrappedValue: sound.defaultRepeats, sound.repeatsKey)
@@ -131,6 +131,11 @@ private struct AppSoundRow: View {
     var body: some View {
         SettingsRow(symbol: sound.symbol, title: moment?.title ?? sound.rawValue, caption: moment?.caption) {
             Toggle(moment?.title ?? sound.rawValue, isOn: $on).labelsHidden().toggleStyle(.switch)
+                .onChange(of: on) { _, _ in
+                    // The snippet sound's switch is read on the keystroke
+                    // path from a copy the service keeps.
+                    if sound == .snippetExpanded { TextSnippetService.shared.syncExpansionSound() }
+                }
         }
         if on {
             SettingsMenuRow(symbol: nil, title: text.sound, selection: selection) {
@@ -164,6 +169,12 @@ private struct AppSoundRow: View {
 
     @ViewBuilder
     private var soundOptions: some View {
+        // The sound this moment made before the Sounds page, kept where the
+        // library does not list it.
+        if let own = AppSoundChoice(id: sound.defaultChoice), own.source == .builtIn, library.url(for: own) != nil {
+            Text(AppSoundLibrary.displayName(own, language: language)).tag(own.id)
+            Divider()
+        }
         ForEach([(AppSoundChoice.Source.tone, text.sourceTones),
                  (.system, text.sourceSystem), (.user, text.sourceYours)], id: \.0) { source, title in
             let choices = library.choices(from: source)
