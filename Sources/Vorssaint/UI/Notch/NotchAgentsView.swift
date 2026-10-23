@@ -1382,13 +1382,17 @@ private struct NotchAgentTrendCard: View {
         let byCost = snapshot.usage(period).fullyPriced
         NotchAgentCardChrome {
             VStack(alignment: .leading, spacing: 6) {
-                NotchAgentCardHeader(title: text.trendCard, symbol: NotchAgentCard.trend.symbol) {
-                    periodPicker
-                    Text(caption(byCost: byCost))
-                        .font(.system(size: 9.5, weight: .medium))
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                // Half a row has no room for the reading beside the picker:
+                // it takes a line of its own, so a pointed-at bar reads whole.
+                ViewThatFits(in: .horizontal) {
+                    NotchAgentCardHeader(title: text.trendCard, symbol: NotchAgentCard.trend.symbol) {
+                        periodPicker
+                        captionText(byCost: byCost)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        NotchAgentCardHeader(title: text.trendCard, symbol: NotchAgentCard.trend.symbol) { periodPicker }
+                        captionText(byCost: byCost)
+                    }
                 }
                 NotchAgentBars(buckets: buckets, providers: providers, byCost: byCost, hovered: $hovered)
                 axis
@@ -1421,6 +1425,14 @@ private struct NotchAgentTrendCard: View {
         }
         .padding(1.5)
         .background(.white.opacity(0.07), in: Capsule())
+    }
+
+    private func captionText(byCost: Bool) -> some View {
+        Text(caption(byCost: byCost))
+            .font(.system(size: 9.5, weight: .medium))
+            .monospacedDigit()
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
     }
 
     private func caption(byCost: Bool) -> String {
