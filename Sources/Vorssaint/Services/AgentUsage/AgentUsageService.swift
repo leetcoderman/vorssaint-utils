@@ -78,6 +78,9 @@ final class AgentUsageService: ObservableObject {
     private var online = true
     /// The AI page is on the island, which asks Claude Code more often.
     private var pageVisible = false
+    /// Seats the person added stand in for the usual profile, which is not
+    /// checked meanwhile.
+    private var claudeSeatsInUse = false
 
     // Confined to `queue`.
     private var readerSession = -1
@@ -108,6 +111,9 @@ final class AgentUsageService: ObservableObject {
     /// Watches the profile where every running Claude Code saves the
     /// account's usage, while the limits are in use.
     private var claudeCacheWatcher: AgentFileWatcher?
+    /// The seats as the seat service last reported them.
+    private var claudeSeats: [ClaudeSeat] = []
+    private var claudeSeatsActive = false
     private var shippedPrices: AgentPriceList?
     private var previousLimits: [AgentProvider: AgentLimits] = [:]
     /// Warned windows, each waiting for its renewal.
@@ -141,6 +147,8 @@ final class AgentUsageService: ObservableObject {
             resume()
         }
         syncPrices()
+        // After the reading starts, so the seats reach its first snapshot.
+        ClaudeSeatLimitsService.shared.synchronize()
         syncClaudeCache()
         refreshClaudeLimits()
     }
@@ -150,6 +158,7 @@ final class AgentUsageService: ObservableObject {
     /// way back costs far more than the pause saves.
     func pause() {
         CodexProfileLimitsService.shared.pause()
+        ClaudeSeatLimitsService.shared.pause()
         // A page torn down with the island never reports leaving, so the
         // minute cadence would outlive it.
         pageVisible = false
@@ -182,7 +191,10 @@ final class AgentUsageService: ObservableObject {
     }
 
     func stop(keepingProgress keeps: Bool = true, pausingAccounts: Bool = true) {
-        if pausingAccounts { CodexProfileLimitsService.shared.pause() }
+        if pausingAccounts {
+            CodexProfileLimitsService.shared.pause()
+            ClaudeSeatLimitsService.shared.pause()
+        }
         pageVisible = false
         // A first read still going stops at its next chunk, so the wait
         // below is short.
@@ -229,6 +241,8 @@ final class AgentUsageService: ObservableObject {
             claudeAppModified = nil
             claudeAppSamples = []
             claudeAccountLimits = nil
+            claudeSeats = []
+            claudeSeatsActive = false
             savedMark = nil
             lastSave = .distantPast
         }
@@ -249,7 +263,10 @@ final class AgentUsageService: ObservableObject {
     /// Reads local fallbacks immediately and asks Claude for fresh account
     /// limits. A Settings preview reads too, without counting as the page.
     func pageDidAppear(preview: Bool = false) {
-        if !preview { pageVisible = true }
+        if !preview {
+            pageVisible = true
+            ClaudeSeatLimitsService.shared.pageDidAppear()
+        }
         guard running else { return }
         if !preview { syncClaudeCache() }
         refreshClaudeLimits(pageShows: true)
@@ -264,7 +281,31 @@ final class AgentUsageService: ObservableObject {
 
     func pageDidDisappear() {
         pageVisible = false
+        ClaudeSeatLimitsService.shared.pageDidDisappear()
         syncClaudeCache()
+    }
+
+    /// The Claude seats' identities, limits and checks, from the seat
+    /// service. Main thread.
+    func noteClaudeSeats(_ seats: [ClaudeSeat]) {
+        let inUse = !seats.isEmpty
+        if inUse != claudeSeatsInUse {
+            claudeSeatsInUse = inUse
+            if inUse { cancelClaudeLimits() }
+        }
+        guard running else { return }
+        queue.async { [self] in
+            guard readerSession >= 0, seats != claudeSeats else { return }
+            claudeSeats = seats
+            claudeSeatsActive = inUse
+            publish()
+        }
+    }
+
+    /// A seat's limit alert, filtered as the account's are. Main thread.
+    func reportSeat(_ event: AgentUsageEvent) {
+        guard running, providers.contains(.claude), NotchAgentSupport.limitThreshold() != nil else { return }
+        events.send(event)
     }
 
     // MARK: Reading
@@ -630,6 +671,7 @@ final class AgentUsageService: ObservableObject {
         if let claudePlan { plans[.claude] = claudePlan }
         if let codex = AgentPlans.codex(planType: store.codexPlan) { plans[.codex] = codex }
         var next = store.snapshot(plans: plans, providers: enabled, now: Date())
+        attachClaudeSeats(&next)
         ledger.merge(next)
         next.lifetime = ledger.usage(providers: enabled)
         published = next
@@ -647,6 +689,45 @@ final class AgentUsageService: ObservableObject {
         }
     }
 
+    /// Each seat's limits, as current at the snapshot's time, and the
+    /// Claude app's work under it: this session's value, this month's and
+    /// the sessions running now. The seat the app is signed in to stands for
+    /// Claude wherever one reading shows. Runs on `queue`.
+    private func attachClaudeSeats(_ snapshot: inout AgentUsageSnapshot) {
+        guard claudeSeatsActive, enabled.contains(.claude) else { return }
+        let now = snapshot.now
+        let index = ClaudeAppAccounts.SessionIndex.shared
+        index.refresh(for: Set(claudeSeats.compactMap(\.owner)))
+        var seatOf: [ClaudeAppAccounts.Owner: String] = [:]
+        for seat in claudeSeats { if let owner = seat.owner, seatOf[owner] == nil { seatOf[owner] = seat.id } }
+        let calendar = Calendar.autoupdatingCurrent
+        let month = calendar.dateInterval(of: .month, for: now)?.start ?? calendar.startOfDay(for: now)
+        let recent = now.addingTimeInterval(-AgentUsageSummary.blockHistory)
+        let earliest = min(month, recent)
+        var monthly: [String: Double] = [:]
+        var latest: [String: [AgentUsageRecord]] = [:]
+        for record in store.records where record.provider == .claude && record.claudeApp && record.date >= earliest {
+            guard let owner = index.owner(of: record.session), let seat = seatOf[owner] else { continue }
+            if record.date >= month { monthly[seat, default: 0] += record.cost ?? 0 }
+            if record.date > recent, record.date <= now { latest[seat, default: []].append(record) }
+        }
+        snapshot.claudeSeats = claudeSeats.map { seat in
+            var seat = seat
+            seat.limits = AgentClaudeServer.current(seat.limits, now: now)
+            seat.monthValue = monthly[seat.id] ?? 0
+            seat.sessionValue = AgentUsageSummary.currentBlock(latest[seat.id] ?? [], now: now,
+                                                               after: seat.limits?.sessionStart(at: now))?.totals.cost
+            return seat
+        }
+        for session in snapshot.live where session.provider == .claude && session.place == .app {
+            if let owner = index.owner(of: session.id), let seat = seatOf[owner] { snapshot.claudeLiveSeats[session.id] = seat }
+        }
+        let active = snapshot.activeClaudeSeat
+        snapshot.limits[.claude] = active?.limits
+        if let plan = active?.plan { snapshot.plans[.claude] = AgentPlan(name: plan, monthlyPrice: nil) }
+        if snapshot.limits[.claude] != nil { snapshot.seen.insert(.claude) }
+    }
+
     // MARK: Alerts
 
     /// Filters by the person's choices on the main thread, where they live.
@@ -660,6 +741,8 @@ final class AgentUsageService: ObservableObject {
                       duration >= minimum else { return }
             case .limitWarning(let provider, _), .limitReset(let provider, _):
                 guard self.providers.contains(provider), NotchAgentSupport.limitThreshold() != nil else { return }
+            case .seatLimitWarning, .seatLimitReset:
+                guard self.providers.contains(.claude), NotchAgentSupport.limitThreshold() != nil else { return }
             case .budgetReached:
                 guard NotchAgentSupport.dailyBudget() != nil else { return }
             }
@@ -671,7 +754,8 @@ final class AgentUsageService: ObservableObject {
     private func checkLimits() {
         guard store.reportsTransitions else { return }
         let threshold = NotchAgentSupport.limitThreshold() ?? NotchAgentSupport.defaultLimitThreshold
-        for (provider, limits) in store.limits {
+        // The seats warn for themselves, each under its own email.
+        for (provider, limits) in store.limits where !(provider == .claude && claudeSeatsActive) {
             for window in AgentLimitSupport.crossings(previous: previousLimits[provider], current: limits,
                                                       threshold: threshold) {
                 warned[window.id] = (provider, window)
@@ -832,7 +916,7 @@ final class AgentUsageService: ObservableObject {
     /// Never while the feature is off, asleep, offline or already checking,
     /// nor while nothing shows or alerts on the limits. Main thread.
     private func claudeLimitsDue(at now: Date, pageShows: Bool) -> Bool {
-        guard running, !paused, online, providers.contains(.claude), claudeAccountRequest == nil,
+        guard running, !paused, online, providers.contains(.claude), !claudeSeatsInUse, claudeAccountRequest == nil,
               NotchAgentSupport.limitsInUse(pageShown: pageVisible || pageShows) else { return false }
         // The resting island shows the plan's limits all day, as the page does.
         return now.timeIntervalSince(claudeAccountAttempted) >= AgentClaudeServer.interval(

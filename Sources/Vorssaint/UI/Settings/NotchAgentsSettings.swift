@@ -41,7 +41,10 @@ struct NotchAgentsSettingsControls: View {
     private var billingText: ClaudeBillingStrings { FeatureStrings.claudeBilling(l10n.language) }
     private var locale: Locale { l10n.language.formattingLocale() }
 
-    private var orderedCards: [NotchAgentCard] { NotchAgentSupport.orderedCards(cardOrder) }
+    @AppStorage(DefaultsKey.notchAgentsClaudeSeats) private var claudeSeats = ""
+    private var orderedCards: [NotchAgentCard] {
+        NotchAgentSupport.orderedCards(cardOrder, claudeSeats: claude && !ClaudeSeatProfile.decode(claudeSeats).isEmpty)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -53,6 +56,7 @@ struct NotchAgentsSettingsControls: View {
             providerRow(.codex, isOn: $codex)
             providerRow(.opencode, isOn: $opencode)
             providerRow(.copilot, isOn: $copilot)
+            if claude { ClaudeSeatsSettings() }
             if codex { CodexAccountsSettings() }
 
             Divider()

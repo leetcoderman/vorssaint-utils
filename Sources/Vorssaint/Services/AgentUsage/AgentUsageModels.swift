@@ -182,5 +182,8 @@ enum AgentUsageEvent: Equatable {
     case finished(provider: AgentProvider, duration: TimeInterval, cost: Double, tokens: Int, project: String)
     case limitWarning(provider: AgentProvider, window: AgentLimitWindow)
     case limitReset(provider: AgentProvider, window: AgentLimitWindow)
+    /// The same for one Claude seat, named by its email.
+    case seatLimitWarning(email: String, window: AgentLimitWindow)
+    case seatLimitReset(email: String, window: AgentLimitWindow)
     case budgetReached(spent: Double, budget: Double)
 }

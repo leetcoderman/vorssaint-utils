@@ -111,6 +111,10 @@ struct AgentUsageSnapshot: Equatable {
     var lastActivity: [AgentProvider: Date] = [:]
     /// Providers with anything on disk: usage, limits or a turn.
     var seen: Set<AgentProvider> = []
+    /// The Claude seats the person added, in their order; empty without any.
+    var claudeSeats: [ClaudeSeat] = []
+    /// The seat each Claude-app session runs under, by the session's id.
+    var claudeLiveSeats: [String: String] = [:]
 
     func usage(_ period: AgentPeriod) -> AgentPeriodUsage { periods[period] ?? AgentPeriodUsage() }
     func working(_ provider: AgentProvider) -> [AgentLiveSession] { live.filter { $0.provider == provider } }
