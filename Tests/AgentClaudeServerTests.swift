@@ -21,6 +21,8 @@ enum AgentClaudeServerTests {
         var online = true
         var providers: [AgentProvider] = [.claude]
         var pageVisible = false
+        var claudeSeatsInUse = false
+        var claudeSeatsActive = false
         var claudeAccountRequest: AgentClaudeServer.Request?
         var claudeAccountAttempted = Date.distantPast
         var claudeAccountFailure: AgentClaudeServer.Failure?

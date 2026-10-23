@@ -34,7 +34,8 @@ struct NotchAgentsView: View {
     /// added, get cards.
     private var providers: [AgentProvider] {
         [claude ? AgentProvider.claude : nil, codex ? .codex : nil, opencode ? .opencode : nil, copilot ? .copilot : nil].compactMap { $0 }
-            .filter { usage.snapshot.seen.contains($0) || ($0 == .codex && !codexAccounts.isEmpty) }
+            .filter { usage.snapshot.seen.contains($0) || ($0 == .codex && !codexAccounts.isEmpty)
+                || ($0 == .claude && !usage.snapshot.claudeSeats.isEmpty) }
     }
 
     /// Whether an API key pays for Claude Code, which splits Claude's card.
@@ -46,8 +47,10 @@ struct NotchAgentsView: View {
     private var rows: [[NotchAgentTile]] {
         // The strings are read here so a change in Settings redraws the page.
         _ = (cardOrder, hiddenCards)
-        let tiles = NotchAgentSupport.tiles(cards: NotchAgentSupport.cards(), providers: providers,
-                                            codexAccounts: codexAccounts.map(\.id), claudeUsesAPI: claudeUsesAPI)
+        let seats = !usage.snapshot.claudeSeats.isEmpty
+        let tiles = NotchAgentSupport.tiles(cards: NotchAgentSupport.cards(claudeSeats: seats), providers: providers,
+                                            codexAccounts: codexAccounts.map(\.id), claudeUsesAPI: claudeUsesAPI,
+                                            claudeSeats: seats)
         return NotchAgentSupport.rows(tiles, width: size.width)
     }
 
@@ -106,7 +109,13 @@ struct NotchAgentsView: View {
         let shown = chosenPeriod
         switch tile.card {
         case .limits:
-            if tile.splitsBilling {
+            if tile.claudeSeats {
+                NotchAgentClaudeSeatsCard(snapshot: snapshot, now: now,
+                                          display: NotchAgentLimitDisplay(rawValue: display) ?? .remaining, text: text,
+                                          wide: size.width >= NotchAgentSupport.pairWidth)
+            } else if tile.claudeAPI {
+                NotchAgentClaudeAPICard(snapshot: snapshot, now: now, text: text)
+            } else if tile.splitsBilling {
                 NotchAgentClaudeBillingCard(snapshot: snapshot, now: now,
                                             display: NotchAgentLimitDisplay(rawValue: display) ?? .remaining, text: text,
                                             wide: size.width >= NotchAgentSupport.pairWidth)
@@ -458,6 +467,8 @@ private struct NotchAgentSessionSlot: View {
     let timed: String?
     /// An API key pays for these sessions, so each says what it cost.
     var showsCost = false
+    /// The Claude seat each session runs under, named in its line.
+    var seat: ((AgentLiveSession) -> String?)? = nil
     let text: NotchAgentStrings
     @ObservedObject private var l10n = L10n.shared
 
@@ -534,7 +545,7 @@ private struct NotchAgentSessionSlot: View {
     }
 
     private func detail(_ session: AgentLiveSession) -> String {
-        [AgentPricing.displayName(session.model),
+        [seat?(session) ?? "", AgentPricing.displayName(session.model),
          session.tokens.output > 0 ? text.written(AgentFormat.tokens(session.tokens.output)) : "",
          showsCost && session.cost > 0 ? AgentFormat.cost(session.cost) : ""]
             .filter { !$0.isEmpty }.joined(separator: " · ")
@@ -690,10 +701,6 @@ struct NotchAgentClaudeBillingCard: View {
     /// them in Agents at work instead.
     var showsSessions = true
     @ObservedObject private var l10n = L10n.shared
-    // Read so a balance saved in Settings redraws the card.
-    @AppStorage(DefaultsKey.notchAgentsClaudeCredits) private var balance = 0.0
-    @AppStorage(DefaultsKey.notchAgentsClaudeCreditsSince) private var since = 0.0
-    @Environment(\.locale) private var locale
 
     private let provider = AgentProvider.claude
     private var billing: ClaudeBillingStrings { FeatureStrings.claudeBilling(l10n.language) }
@@ -726,7 +733,8 @@ struct NotchAgentClaudeBillingCard: View {
                     if wide {
                         Rectangle().fill(.white.opacity(0.1)).frame(width: 1).frame(maxHeight: .infinity)
                     }
-                    api.frame(maxWidth: .infinity, alignment: .topLeading)
+                    NotchAgentClaudeAPIFigures(snapshot: snapshot, now: now, text: text)
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 if showsSessions {
@@ -817,6 +825,27 @@ struct NotchAgentClaudeBillingCard: View {
         }
     }
 
+}
+
+/// The API key's spending: today, this calendar month and what is left of
+/// the balance entered, on Claude's split card and its own half card.
+private struct NotchAgentClaudeAPIFigures: View {
+    let snapshot: AgentUsageSnapshot
+    let now: Date
+    let text: NotchAgentStrings
+    /// The split card names its half; the half card's header already does.
+    var showsSection = true
+    @ObservedObject private var l10n = L10n.shared
+    // Read so a balance saved in Settings redraws the card.
+    @AppStorage(DefaultsKey.notchAgentsClaudeCredits) private var balance = 0.0
+    @AppStorage(DefaultsKey.notchAgentsClaudeCreditsSince) private var since = 0.0
+    @Environment(\.locale) private var locale
+
+    private let provider = AgentProvider.claude
+    private var billing: ClaudeBillingStrings { FeatureStrings.claudeBilling(l10n.language) }
+
+    var body: some View { api }
+
     /// Today and this calendar month from the days the summary keeps, so a
     /// month's first days are never mixed with the last one's.
     private var api: some View {
@@ -826,7 +855,13 @@ struct NotchAgentClaudeBillingCard: View {
         let monthDays = days.filter { $0.start >= month }
         let today = days.last.flatMap { calendar.isDate($0.start, inSameDayAs: now) ? $0 : nil }
         return VStack(alignment: .leading, spacing: 4) {
-            section(billing.api)
+            if showsSection {
+                Text(billing.api.uppercased())
+                    .font(.system(size: 8.5, weight: .semibold))
+                    .tracking(0.4)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+            }
             figure(text.period(.today), cost(today.map { [$0] } ?? []))
             figure(billing.thisMonth, cost(monthDays))
             credits(days: days)
@@ -894,6 +929,233 @@ struct NotchAgentClaudeBillingCard: View {
             }
             .buttonStyle(.plain)
         }
+    }
+}
+
+/// Claude's seats side by side, each with its session, its renewal and what
+/// the Claude app's work under it is worth; the sessions running under them
+/// below. The seat the Claude app uses wears a dot.
+struct NotchAgentClaudeSeatsCard: View {
+    let snapshot: AgentUsageSnapshot
+    let now: Date
+    let display: NotchAgentLimitDisplay
+    let text: NotchAgentStrings
+    /// Seats side by side; one above the other where cards do not pair.
+    let wide: Bool
+    /// The lock screen lists the sessions in Agents at work instead.
+    var showsSessions = true
+    @ObservedObject private var l10n = L10n.shared
+    @AppStorage(DefaultsKey.notchAgentsClaudeOrgLabel) private var organization = ""
+
+    private let provider = AgentProvider.claude
+    private var seats: ClaudeSeatStrings { FeatureStrings.claudeSeats(l10n.language) }
+
+    var body: some View {
+        NotchAgentCardChrome {
+            VStack(alignment: .leading, spacing: 6) {
+                NotchAgentCardHeader(title: seats.subscriptionTitle, symbol: provider.symbol, tint: provider.tint,
+                                     provider: provider) {
+                    let label = organization.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !label.isEmpty { NotchAgentChip(text: label, tint: NotchTopBarPalette.yellow) }
+                    if let plan = snapshot.activeClaudeSeat?.plan { NotchAgentChip(text: plan, tint: provider.tint) }
+                }
+                let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+                    : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                layout {
+                    ForEach(Array(snapshot.claudeSeats.enumerated()), id: \.element.id) { index, seat in
+                        if index > 0 {
+                            Rectangle().fill(.white.opacity(0.1))
+                                .frame(width: wide ? 1 : nil, height: wide ? nil : 1)
+                                .frame(maxWidth: wide ? nil : .infinity, maxHeight: wide ? .infinity : nil)
+                        }
+                        NotchAgentClaudeSeatColumn(seat: seat, now: now, display: display, text: text)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+                if showsSessions {
+                    Spacer(minLength: 0)
+                    sessions
+                }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The Claude app's sessions, each naming its seat, and Claude Code's
+    /// elsewhere, in one row so both start level.
+    private var sessions: some View {
+        let working = snapshot.working(provider)
+        let timed = snapshot.live.first?.id
+        let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+            : AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+        return VStack(alignment: .leading, spacing: 6) {
+            Rectangle().fill(.white.opacity(0.1)).frame(height: 1)
+            layout {
+                NotchAgentSessionSlot(provider: provider, place: .app, sessions: working.filter { $0.place == .app },
+                                      timed: timed, seat: { snapshot.claudeSeat(for: $0)?.email }, text: text)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if wide {
+                    Rectangle().fill(.white.opacity(0.1)).frame(width: 1).frame(maxHeight: .infinity)
+                }
+                NotchAgentSessionSlot(provider: provider, place: .terminal,
+                                      sessions: working.filter { $0.place == .terminal },
+                                      timed: timed, showsCost: AgentClaudeBilling.usesAPI(), text: text)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// One seat: its email, its session's meter and renewal, and the Claude
+/// app's work under it this session and this month, or what keeps it from
+/// showing them.
+private struct NotchAgentClaudeSeatColumn: View {
+    let seat: ClaudeSeat
+    let now: Date
+    let display: NotchAgentLimitDisplay
+    let text: NotchAgentStrings
+    @ObservedObject private var l10n = L10n.shared
+    @Environment(\.locale) private var locale
+    /// The lock screen's widget has no room for a note under the meter.
+    @Environment(\.notchAgentsLockScreen) private var lockScreen
+
+    private let provider = AgentProvider.claude
+    private var seats: ClaudeSeatStrings { FeatureStrings.claudeSeats(l10n.language) }
+
+    private var session: AgentLimitWindow? {
+        seat.limits?.windows.first { $0.kind == .session && $0.scope == nil }.map { AgentLimitSupport.current($0, at: now) }
+    }
+
+    private var stale: Bool {
+        NotchAgentSupport.limitsAreStale(seat.limits, provider: provider, account: true, now: now)
+    }
+
+    var body: some View {
+        let places = FeatureStrings.notchAgentPlaces(l10n.language)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 5) {
+                if seat.active {
+                    Circle().fill(provider.tint).frame(width: 6, height: 6)
+                        .background(Circle().fill(provider.tint.opacity(0.22)).padding(-2))
+                        .help(seats.activeHelp)
+                        .accessibilityLabel(seats.activeHelp)
+                }
+                Text(seat.email.isEmpty ? seats.notSignedIn : seat.email)
+                    .font(.system(size: 10.5, weight: seat.active ? .semibold : .medium))
+                    .foregroundStyle(seat.active ? AnyShapeStyle(.white.opacity(0.9)) : AnyShapeStyle(.secondary))
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                    .help(seat.email)
+            }
+            if seat.failure == .needsSignIn || seat.account == nil {
+                signIn
+            } else {
+                limit
+                if lockScreen == nil, let note {
+                    Text(note)
+                        .font(.system(size: 9.5))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                NotchAgentAmountRow(label: places.thisSession, value: seat.sessionValue)
+                NotchAgentAmountRow(label: places.thisMonth, value: seat.monthValue)
+            }
+        }
+    }
+
+    /// The open session's meter, a quiet empty one while none is open, or a
+    /// moving one through the first check.
+    @ViewBuilder private var limit: some View {
+        if let session {
+            NotchAgentLimitRow(window: session, provider: provider, now: now, display: display, text: text,
+                               observedAt: seat.limits?.observedAt)
+                .opacity(stale ? 0.6 : 1)
+        } else {
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 5) {
+                    Text(text.session)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.85))
+                    if seat.checking && seat.limits == nil {
+                        Text(seats.checking).font(.system(size: 9.5)).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 2)
+                    Text(seat.limits == nil ? "–" : AgentFormat.percent(display == .remaining ? 1 : 0))
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.tertiary)
+                }
+                NotchAgentMeter(value: display == .remaining && seat.limits != nil ? 1 : 0, tint: provider.tint,
+                                height: 4, dimmed: true)
+            }
+        }
+    }
+
+    /// Why the numbers may be behind: a check that failed, an old reading,
+    /// or no session open yet.
+    private var note: String? {
+        switch seat.failure {
+        case .missing?: return seats.missing
+        case .outdated?: return seats.outdated
+        case .unreachable? where seat.limits == nil || stale: return seats.failed
+        default: break
+        }
+        if stale, let checked = seat.checked {
+            return text.updated(checked.formatted(.relative(presentation: .named).locale(locale)))
+        }
+        if session == nil, seat.limits != nil { return seats.noSession }
+        return nil
+    }
+
+    /// The command that signs the seat in again, to copy or run in Terminal.
+    private var signIn: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(seats.signInNeeded, systemImage: "exclamationmark.triangle.fill")
+                .labelStyle(NotchAgentInlineLabel())
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.orange)
+            Text(seat.signInCommand)
+                .font(.system(size: 9.5, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.85))
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 3)
+                .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                .help(seat.signInCommand)
+            HStack(spacing: 8) {
+                Button(seats.copyCommand) { ClaudeSeatActions.copy(seat.signInCommand) }
+                Button(seats.openTerminal) { ClaudeSeatActions.openTerminal() }
+            }
+            .buttonStyle(.plain)
+            .font(.system(size: 9.5, weight: .medium))
+            .foregroundStyle(provider.tint)
+        }
+    }
+}
+
+/// The API key's half of Claude's card, beside Codex once the seats take
+/// the first row.
+struct NotchAgentClaudeAPICard: View {
+    let snapshot: AgentUsageSnapshot
+    let now: Date
+    let text: NotchAgentStrings
+    @ObservedObject private var l10n = L10n.shared
+
+    var body: some View {
+        let provider = AgentProvider.claude
+        NotchAgentCardChrome {
+            VStack(alignment: .leading, spacing: 6) {
+                NotchAgentCardHeader(title: FeatureStrings.claudeSeats(l10n.language).apiTitle, symbol: provider.symbol,
+                                     tint: provider.tint, provider: provider) { EmptyView() }
+                NotchAgentClaudeAPIFigures(snapshot: snapshot, now: now, text: text, showsSection: false)
+                Spacer(minLength: 0)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 

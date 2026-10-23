@@ -872,6 +872,11 @@ enum DefaultsKey {
     static let notchAgentsCodex = "notchAgentsCodex"
     /// The Codex homes, `CODEX_HOME` folders, that get limits cards of their own.
     static let notchAgentsCodexProfiles = "notchAgentsCodexProfiles"
+    /// The Claude Code profiles, `CLAUDE_CONFIG_DIR` folders, each signed in
+    /// to one seat of a Claude plan, whose limits show side by side.
+    static let notchAgentsClaudeSeats = "notchAgentsClaudeSeats"
+    /// The organization's name on the seats' card, as the person writes it.
+    static let notchAgentsClaudeOrgLabel = "notchAgentsClaudeOrgLabel"
     static let notchAgentsOpenCode = "notchAgentsOpenCode"
     static let notchAgentsCopilot = "notchAgentsCopilot"
     static let notchAgentsCardOrder = "notchAgentsCardOrder"
@@ -1490,6 +1495,8 @@ enum Defaults {
         DefaultsKey.notchAgentsClaude: true,
         DefaultsKey.notchAgentsCodex: true,
         DefaultsKey.notchAgentsCodexProfiles: "",
+        DefaultsKey.notchAgentsClaudeSeats: "",
+        DefaultsKey.notchAgentsClaudeOrgLabel: "",
         DefaultsKey.notchAgentsOpenCode: true,
         DefaultsKey.notchAgentsCopilot: true,
         DefaultsKey.notchAgentsCardOrder: "",

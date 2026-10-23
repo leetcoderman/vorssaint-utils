@@ -45,7 +45,7 @@ struct NotchAgentStrip: View {
                     if geometry.compactActivityWingWidth >= 28, let mark {
                         NotchAgentWorkingMark(layout: mark,
                                               window: NotchAgentSupport.focusedLimit(
-                                                usage.snapshot.limits[mark.provider],
+                                                NotchAgentSupport.workingLimits(usage.snapshot, provider: mark.provider),
                                                 focus: NotchAgentLimitFocus(rawValue: focus) ?? .mostUsed, now: Date()),
                                               used: display == NotchAgentLimitDisplay.used.rawValue)
                     }
@@ -276,8 +276,9 @@ private struct NotchAgentRestingContent: View {
 
     private func amount(_ meter: NotchAgentRestingMeter, now: Date, style: NotchAgentRestingAmount.Style,
                         alignment: HorizontalAlignment = .trailing) -> some View {
+        // A seat rests on its number alone: the expanded page has its renewal.
         NotchAgentRestingAmount(window: meter.window, used: choices.used,
-                                reset: NotchAgentSupport.restingReset(meter.window, now: now,
+                                reset: meter.seat != nil ? nil : NotchAgentSupport.restingReset(meter.window, now: now,
                                                                       locale: l10n.language.formattingLocale()),
                                 style: style, alignment: alignment)
     }

@@ -48,6 +48,9 @@ struct NotchLockScreenAICards: View {
                 ForEach(widgets, id: \.widget) { placed in
                     Group {
                         switch placed.widget {
+                        case .claude where !snapshot.claudeSeats.isEmpty:
+                            NotchAgentClaudeSeatsCard(snapshot: snapshot, now: context.date, display: shown, text: text,
+                                                      wide: true, showsSessions: false)
                         case .claude where claudeUsesAPI:
                             NotchAgentClaudeBillingCard(snapshot: snapshot, now: context.date, display: shown, text: text,
                                                         wide: true, showsSessions: false)

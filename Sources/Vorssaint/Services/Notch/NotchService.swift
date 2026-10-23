@@ -864,11 +864,14 @@ final class NotchService: ObservableObject {
         // Added Codex accounts have cards before, or without, any log.
         let accounts = NotchAgentSupport.showsCodexAccounts() ? CodexProfileLimitsService.shared.states.map(\.id) : []
         guard usage.loaded || !accounts.isEmpty else { return nil }
-        let providers = enabled.filter { usage.seen.contains($0) || ($0 == .codex && !accounts.isEmpty) }
+        let seats = !usage.claudeSeats.isEmpty
+        let providers = enabled.filter { usage.seen.contains($0) || ($0 == .codex && !accounts.isEmpty)
+            || ($0 == .claude && seats) }
         guard !providers.isEmpty else { return 0 }
         return NotchAgentSupport.contentHeight(NotchAgentSupport.rows(
-            NotchAgentSupport.tiles(cards: NotchAgentSupport.cards(), providers: providers, codexAccounts: accounts,
-                                    claudeUsesAPI: AgentClaudeBilling.usesAPI()),
+            NotchAgentSupport.tiles(cards: NotchAgentSupport.cards(claudeSeats: seats), providers: providers,
+                                    codexAccounts: accounts, claudeUsesAPI: AgentClaudeBilling.usesAPI(),
+                                    claudeSeats: seats),
             width: width), width: width, live: usage.live)
     }
     var expandedGeometry: NotchGeometry {
@@ -4049,7 +4052,7 @@ final class NotchService: ObservableObject {
             // many sessions each card lists, a row each on the AI page.
             AgentUsageService.shared.$snapshot
                 .map { ($0.loaded, $0.live.isEmpty, $0.seen, Set($0.live.map(\.provider)),
-                        $0.live.map { "\($0.provider.rawValue).\($0.place)" }.sorted()) }
+                        $0.live.map { "\($0.provider.rawValue).\($0.place)" }.sorted(), $0.claudeSeats.map(\.id)) }
                 .removeDuplicates(by: ==)
                 .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
@@ -4168,6 +4171,15 @@ final class NotchService: ObservableObject {
             // Work can go on: the companion is glad of it.
             show(NotchNotice(event: .agents, title: "\(provider.displayName) · \(window(limit))",
                              detail: text.limitRenewed, symbol: "arrow.clockwise", agent: provider, mascot: .celebrate))
+            reactMascot(.celebrate)
+        case .seatLimitWarning(let email, let limit):
+            let share = AgentFormat.percent(remaining ? limit.remainingFraction : limit.usedFraction)
+            show(NotchNotice(event: .agents, title: "\(AgentProvider.claude.displayName) · \(email) · \(window(limit))",
+                             detail: remaining ? text.left(share) : text.usedShare(share),
+                             symbol: "exclamationmark.triangle.fill", agent: .claude))
+        case .seatLimitReset(let email, let limit):
+            show(NotchNotice(event: .agents, title: "\(AgentProvider.claude.displayName) · \(email) · \(window(limit))",
+                             detail: text.limitRenewed, symbol: "arrow.clockwise", agent: .claude, mascot: .celebrate))
             reactMascot(.celebrate)
         case .budgetReached(let spent, _):
             show(NotchNotice(event: .agents, title: text.budgetTitle, detail: AgentFormat.cost(spent),
