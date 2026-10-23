@@ -2101,6 +2101,12 @@ enum NotchSupport {
             + (AppFeature.connectedDevices.isAvailable(in: defaults) ? 1 : 0)
     }
 
+    /// The screen's first pixel row, which the menu bar keeps from the
+    /// island's window. CGRect.contains leaves out its top edge.
+    static func onScreenTopRow(_ point: CGPoint, of screen: CGRect) -> Bool {
+        point.y > screen.maxY - 1 && NSMouseInRect(point, screen, false)
+    }
+
     /// Direct openings are dismissed explicitly, never by the pointer's
     /// initial position at the menu bar or in the application being used.
     /// An island driven by the pointer also closes a direct opening once the

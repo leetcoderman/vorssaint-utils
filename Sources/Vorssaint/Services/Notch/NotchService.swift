@@ -182,6 +182,7 @@ final class NotchService: ObservableObject {
     private var subscriptions = Set<AnyCancellable>()
     private var eventMonitors: [Any] = []
     private var screenEdgeClickMonitors: [Any] = []
+    private var screenEdgeHoverMonitors: [Any] = []
     private var screenEdgePressArea: CGRect?
     private var captureControlsMonitors: [Any] = []
     private var hiddenHoverMonitors: [Any] = []
@@ -1307,6 +1308,7 @@ final class NotchService: ObservableObject {
         pointerReachedOpening = false
         removeEventMonitors()
         removeScreenEdgeClickMonitors()
+        removeScreenEdgeHoverMonitors()
         removeCaptureControlsClickThrough()
         removeHiddenHoverMonitors()
         removeHoverExitMonitors()
@@ -2608,6 +2610,7 @@ final class NotchService: ObservableObject {
             if hiddenUntilHover { windowHost?.hide(animated: animated, transitionContent: transitionContent) }
             else { panel?.orderOut(nil) }
             removeScreenEdgeClickMonitors()
+            removeScreenEdgeHoverMonitors()
             return
         }
         let open = expanded || peeking || notice != nil || dragPlaceholder || captureControls != nil
@@ -2617,6 +2620,7 @@ final class NotchService: ObservableObject {
             if heldMusic != nil { heldMusic = nil }
             windowHost?.hide(animated: animated, transitionContent: transitionContent)
             removeScreenEdgeClickMonitors()
+            removeScreenEdgeHoverMonitors()
             return
         }
         let access = NotchQuickAccessConfiguration.current()
@@ -2705,6 +2709,7 @@ final class NotchService: ObservableObject {
             } else { finishMusicDeparture() }
         }
         syncScreenEdgeClicks()
+        syncScreenEdgeHover()
     }
 
     private func syncHiddenHoverMonitoring() {
@@ -3192,6 +3197,38 @@ final class NotchService: ObservableObject {
         default:
             break
         }
+    }
+
+    /// The menu bar's first row hides the pointer from the island's tracking
+    /// area as it does clicks, and a pointer thrown to the top edge lands
+    /// there without crossing the rows below. Moves are watched only while the
+    /// closed island opens on hover, and each checks that row alone.
+    private func syncScreenEdgeHover() {
+        guard screenEdgeClickArea != nil, UserDefaults.standard.bool(forKey: DefaultsKey.notchOpenOnHover) else {
+            removeScreenEdgeHoverMonitors()
+            return
+        }
+        guard screenEdgeHoverMonitors.isEmpty else { return }
+        if let token = NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved, handler: { [weak self] _ in
+            self?.handleScreenEdgeMove()
+        }) { screenEdgeHoverMonitors.append(token) }
+        if let token = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved, handler: { [weak self] event in
+            self?.handleScreenEdgeMove()
+            return event
+        }) { screenEdgeHoverMonitors.append(token) }
+    }
+
+    private func handleScreenEdgeMove() {
+        guard !inside else { return }
+        let point = NSEvent.mouseLocation
+        guard NotchSupport.onScreenTopRow(point, of: geometry.screen),
+              windowHost?.containsHover(point) == true else { return }
+        hover(true)
+    }
+
+    private func removeScreenEdgeHoverMonitors() {
+        screenEdgeHoverMonitors.forEach(NSEvent.removeMonitor)
+        screenEdgeHoverMonitors.removeAll()
     }
 
     private func removeScreenEdgeClickMonitors() {
