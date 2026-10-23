@@ -34,6 +34,14 @@ enum AppSound: String, CaseIterable, Identifiable {
     case screenLock
     /// A typed trigger expands into its snippet.
     case snippetExpanded
+    /// The battery falls to the low mark while on battery.
+    case batteryLow
+    /// A charger is plugged in.
+    case chargerConnected
+    /// The charger is unplugged.
+    case chargerDisconnected
+    /// A timed Keep Awake session runs out.
+    case keepAwakeEnded
 
     var id: String { rawValue }
 
@@ -43,6 +51,7 @@ enum AppSound: String, CaseIterable, Identifiable {
              .agentLimitWarning, .agentLimitReset, .agentBudgetReached: return .agents
         case .timerFinished, .watchFinished, .screenLock: return .alerts
         case .snippetExpanded: return .typing
+        case .batteryLow, .chargerConnected, .chargerDisconnected, .keepAwakeEnded: return .power
         }
     }
 
@@ -55,6 +64,8 @@ enum AppSound: String, CaseIterable, Identifiable {
         case .watchFinished: return .notchWatch
         case .screenLock: return .notch
         case .snippetExpanded: return .textSnippets
+        case .batteryLow, .chargerConnected, .chargerDisconnected: return .monitorPower
+        case .keepAwakeEnded: return .keepAwake
         }
     }
 
@@ -72,12 +83,17 @@ enum AppSound: String, CaseIterable, Identifiable {
         case .watchFinished: return "eye"
         case .screenLock: return "lock"
         case .snippetExpanded: return "text.append"
+        case .batteryLow: return "battery.25percent"
+        case .chargerConnected: return "bolt.fill"
+        case .chargerDisconnected: return "bolt.slash"
+        case .keepAwakeEnded: return "cup.and.saucer"
         }
     }
 
     /// A choice from `AppSoundLibrary`: a full chime for work that is done,
     /// a lighter one for work beginning, a reminding one for a wait, and a
-    /// low one for work that stopped. The sounds the app made before the
+    /// low one for work that stopped. A low battery gets an alert, the
+    /// charger a short click each way. The sounds the app made before the
     /// Sounds page keep playing as they did.
     var defaultChoice: String {
         switch self {
@@ -93,6 +109,10 @@ enum AppSound: String, CaseIterable, Identifiable {
         case .screenLock: return AppSoundChoice.padlockClosing.id
         // Stored bare, as the snippets page always has.
         case .snippetExpanded: return Defaults.defaultSnippetSoundName
+        case .batteryLow: return "tone:Classic/Alert"
+        case .chargerConnected: return "tone:Modern/Bamboo"
+        case .chargerDisconnected: return "tone:Modern/Keys"
+        case .keepAwakeEnded: return "tone:Classic/Descent"
         }
     }
 
@@ -101,6 +121,8 @@ enum AppSound: String, CaseIterable, Identifiable {
         case .agentFinished, .agentsAllDone, .agentNeedsInput: return 1.5
         case .agentStarted, .agentInterrupted, .agentLimitWarning, .agentLimitReset, .agentBudgetReached: return 1
         case .timerFinished, .watchFinished, .screenLock, .snippetExpanded: return 1
+        case .batteryLow: return 1.5
+        case .chargerConnected, .chargerDisconnected, .keepAwakeEnded: return 1
         }
     }
 
@@ -112,7 +134,8 @@ enum AppSound: String, CaseIterable, Identifiable {
         switch self {
         case .timerFinished, .watchFinished: return true
         case .agentFinished, .agentStarted, .agentsAllDone, .agentNeedsInput, .agentInterrupted,
-             .agentLimitWarning, .agentLimitReset, .agentBudgetReached, .screenLock, .snippetExpanded: return false
+             .agentLimitWarning, .agentLimitReset, .agentBudgetReached, .screenLock, .snippetExpanded,
+             .batteryLow, .chargerConnected, .chargerDisconnected, .keepAwakeEnded: return false
         }
     }
 
@@ -123,7 +146,8 @@ enum AppSound: String, CaseIterable, Identifiable {
         switch self {
         case .screenLock, .snippetExpanded: return true
         case .agentFinished, .agentStarted, .agentsAllDone, .agentNeedsInput, .agentInterrupted,
-             .agentLimitWarning, .agentLimitReset, .agentBudgetReached, .timerFinished, .watchFinished: return false
+             .agentLimitWarning, .agentLimitReset, .agentBudgetReached, .timerFinished, .watchFinished,
+             .batteryLow, .chargerConnected, .chargerDisconnected, .keepAwakeEnded: return false
         }
     }
 
@@ -132,7 +156,8 @@ enum AppSound: String, CaseIterable, Identifiable {
     var minimumGap: TimeInterval {
         switch self {
         case .agentFinished, .agentStarted, .agentsAllDone, .agentNeedsInput, .agentInterrupted,
-             .agentLimitWarning, .agentLimitReset, .agentBudgetReached: return AppSoundSupport.minimumGap
+             .agentLimitWarning, .agentLimitReset, .agentBudgetReached,
+             .batteryLow, .chargerConnected, .chargerDisconnected, .keepAwakeEnded: return AppSoundSupport.minimumGap
         case .timerFinished, .watchFinished, .screenLock, .snippetExpanded: return 0
         }
     }
@@ -149,7 +174,8 @@ enum AppSound: String, CaseIterable, Identifiable {
         case .screenLock: return DefaultsKey.notchLockSounds
         case .snippetExpanded: return DefaultsKey.snippetSoundEnabled
         case .agentFinished, .agentStarted, .agentsAllDone, .agentNeedsInput, .agentInterrupted,
-             .agentLimitWarning, .agentLimitReset, .agentBudgetReached: return nil
+             .agentLimitWarning, .agentLimitReset, .agentBudgetReached,
+             .batteryLow, .chargerConnected, .chargerDisconnected, .keepAwakeEnded: return nil
         }
     }
 
@@ -186,6 +212,7 @@ enum AppSoundGroup: String, CaseIterable, Identifiable {
     case alerts
     /// Text snippets.
     case typing
+    case power
 
     var id: String { rawValue }
 
@@ -198,6 +225,7 @@ enum AppSoundGroup: String, CaseIterable, Identifiable {
         case .agents: return !NotchAgentSupport.isEnabled()
         case .alerts: return !NotchSupport.isEnabled()
         case .typing: return !UserDefaults.standard.bool(forKey: DefaultsKey.textSnippetsEnabled)
+        case .power: return !PowerSoundSupport.hasInternalBattery
         }
     }
 
@@ -207,6 +235,7 @@ enum AppSoundGroup: String, CaseIterable, Identifiable {
         case .agents: return FeatureStrings.agentSounds(language)
         case .alerts: return FeatureStrings.alertSounds(language)
         case .typing: return FeatureStrings.typingSounds(language)
+        case .power: return FeatureStrings.powerSounds(language)
         }
     }
 }

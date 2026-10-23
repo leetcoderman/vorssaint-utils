@@ -293,6 +293,7 @@ if (( TEST )); then
         Sources/Vorssaint/Core/AgentSoundStrings.swift
         Sources/Vorssaint/Core/AlertMomentSoundStrings.swift
         Sources/Vorssaint/Core/TypingSoundStrings.swift
+        Sources/Vorssaint/Core/PowerSoundStrings.swift
         Sources/Vorssaint/Core/NotchLimitVisibilityStrings.swift
         Sources/Vorssaint/Services/Notch/NotchAgentSupport.swift
         Sources/Vorssaint/Services/Notch/NotchLimitVisibility.swift
@@ -389,6 +390,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Sounds/AppSoundRules.swift
         Sources/Vorssaint/Services/Sounds/AppSoundLibrary.swift
         Sources/Vorssaint/Services/Sounds/AppSoundService.swift
+        Sources/Vorssaint/Services/Sounds/PowerSoundWatcher.swift
         Sources/Vorssaint/Services/RadialMenu/RadialMenuSupport.swift
         Sources/Vorssaint/Services/QuickTools/ScratchpadSupport.swift
         Sources/Vorssaint/Services/QuickTools/ScratchpadStore.swift
