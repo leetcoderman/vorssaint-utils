@@ -117,7 +117,8 @@ struct NotchAgentTile: Identifiable, Equatable {
     var seatsShowAPI = false
     /// The API key's spending on its own, with Claude's plan left out.
     var claudeAPI = false
-    /// Trend beside another card, as it sits once seats take the first row.
+    /// Trend or Activity beside another card, as they sit once seats take
+    /// the first row.
     var paired = false
     var id: String {
         card.rawValue + (provider.map { "." + $0.rawValue } ?? "") + (accountID.map { "." + $0 } ?? "")
@@ -172,8 +173,8 @@ enum NotchAgentSupport {
     }
 
     /// The page's order once Claude's seats take the first row: Trend
-    /// beside Spending under the API key and Codex.
-    static let claudeSeatsOrder = "limits,trend,spend"
+    /// beside Codex, Projects beside Spending, and Resets beside Activity.
+    static let claudeSeatsOrder = "limits,trend,projects,spend,resets,activity"
 
     /// The cards a saved order lists, without retired or repeated ones.
     static func orderedCards(_ saved: String, claudeSeats: Bool = false) -> [NotchAgentCard] {
@@ -542,6 +543,9 @@ enum NotchAgentSupport {
     static let spacing: CGFloat = 10
     static let cardHeight: CGFloat = 96
     static let chartHeight: CGFloat = 118
+    /// Activity beside another card: its map across the card's width, and a
+    /// line of figures under it.
+    static let pairedActivityHeight: CGFloat = 176
     /// An account card also says when it was checked, and the Resets card
     /// beside account cards names the account its resets belong to.
     static let accountCardHeight: CGFloat = 116
@@ -603,7 +607,7 @@ enum NotchAgentSupport {
             // the card names once others have cards.
             case .resets: return providers.contains(.codex)
                 ? [NotchAgentTile(card: .resets, provider: .codex, namesDefaultAccount: !codexAccounts.isEmpty)] : []
-            case .trend: return [NotchAgentTile(card: card, provider: nil, paired: seats)]
+            case .trend, .activity: return [NotchAgentTile(card: card, provider: nil, paired: seats)]
             default: return [NotchAgentTile(card: card, provider: nil)]
             }
         }
@@ -655,6 +659,8 @@ enum NotchAgentSupport {
             return seatsCardHeight(seats.seatCount, width: width, api: seats.seatsShowAPI) + growth
         }
         if row.contains(where: \.fullWidth) { return chartHeight }
+        // Activity's map fills a half card, about as tall as it is wide.
+        if row.contains(where: { $0.card == .activity }) { return pairedActivityHeight }
         let height = row.contains { $0.accountID != nil || $0.namesDefaultAccount } ? accountCardHeight : cardHeight
         // Spending lists its top models under the total.
         let tall = row.contains { $0.showsSessions || $0.card == .spend || $0.paired }

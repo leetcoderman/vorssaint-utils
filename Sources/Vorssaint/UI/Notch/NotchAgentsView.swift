@@ -139,7 +139,7 @@ struct NotchAgentsView: View {
             NotchAgentShareCard(title: text.projectsCard, symbol: NotchAgentCard.projects.symbol,
                                 shares: snapshot.usage(shown).projects, byCost: showsCost(snapshot.usage(shown)), text: text)
         case .activity:
-            NotchAgentActivityCard(snapshot: snapshot, text: text)
+            NotchAgentActivityCard(snapshot: snapshot, text: text, compact: tile.paired)
         case .resets:
             NotchAgentResetsCard(now: now, text: text, showsDefaultAccount: tile.namesDefaultAccount)
         }
@@ -1654,6 +1654,8 @@ private struct NotchAgentShareCard: View {
 private struct NotchAgentActivityCard: View {
     let snapshot: AgentUsageSnapshot
     let text: NotchAgentStrings
+    /// Half a row: the map takes the card's width, the figures a line under it.
+    var compact = false
     @State private var hovered: Date?
     @Environment(\.locale) private var locale
 
@@ -1682,16 +1684,45 @@ private struct NotchAgentActivityCard: View {
                             .accessibilityValue("\(streak)")
                     }
                 }
-                GeometryReader { proxy in
-                    let map = NotchAgentHeatmap.width(height: proxy.size.height, days: snapshot.days)
-                    HStack(alignment: .top, spacing: 14) {
-                        NotchAgentHeatmap(days: snapshot.days, byCost: byCost, hovered: $hovered)
-                            .frame(width: map, height: proxy.size.height)
-                        figures(byCost: byCost)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                if compact {
+                    NotchAgentHeatmap(days: snapshot.days, byCost: byCost, hovered: $hovered)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    line(byCost: byCost)
+                } else {
+                    GeometryReader { proxy in
+                        let map = NotchAgentHeatmap.width(height: proxy.size.height, days: snapshot.days)
+                        HStack(alignment: .top, spacing: 14) {
+                            NotchAgentHeatmap(days: snapshot.days, byCost: byCost, hovered: $hovered)
+                                .frame(width: map, height: proxy.size.height)
+                            figures(byCost: byCost)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                        }
                     }
                 }
             }
+        }
+    }
+
+    /// The map's total, and its active days or the hovered day's value.
+    private func line(byCost: Bool) -> some View {
+        let pointed = hovered.flatMap { date in snapshot.days.first { $0.start == date } }
+        return HStack(alignment: .firstTextBaseline, spacing: 5) {
+            Text(value(snapshot.days.reduce(into: AgentTotals()) { $0 += $1.total }, byCost: byCost))
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .lineLimit(1)
+            Text(AgentFormat.span(days: snapshot.days.count, locale: locale))
+                .font(.system(size: 9.5)).foregroundStyle(.secondary).lineLimit(1)
+            Spacer(minLength: 4)
+            Group {
+                if let day = pointed {
+                    Text(day.start.formatted(.dateTime.day().month(.abbreviated).locale(locale)) + " · "
+                         + value(day.total, byCost: byCost))
+                } else {
+                    Text(text.activeDays + " " + "\(snapshot.days.filter { $0.total.requests > 0 }.count)")
+                }
+            }
+            .font(.system(size: 9.5)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
         }
     }
 
