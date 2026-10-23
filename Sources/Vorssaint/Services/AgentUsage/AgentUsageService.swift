@@ -917,6 +917,7 @@ final class AgentUsageService: ObservableObject {
     /// nor while nothing shows or alerts on the limits. Main thread.
     private func claudeLimitsDue(at now: Date, pageShows: Bool) -> Bool {
         guard running, !paused, online, providers.contains(.claude), !claudeSeatsInUse, claudeAccountRequest == nil,
+              NotchLimitVisibility.isChecked(.claude),
               NotchAgentSupport.limitsInUse(pageShown: pageVisible || pageShows) else { return false }
         // The resting island shows the plan's limits all day, as the page does.
         return now.timeIntervalSince(claudeAccountAttempted) >= AgentClaudeServer.interval(
@@ -942,7 +943,7 @@ final class AgentUsageService: ObservableObject {
     /// Watches Claude Code's profile only while the feature reads Claude and
     /// something uses the limits; pause, sleep and stop end it. Main thread.
     private func syncClaudeCache() {
-        let wanted = running && !paused && providers.contains(.claude)
+        let wanted = running && !paused && providers.contains(.claude) && NotchLimitVisibility.isChecked(.claude)
             && NotchAgentSupport.limitsInUse(pageShown: pageVisible)
         queue.async { [self] in
             guard wanted, readerSession >= 0, enabled.contains(.claude) else {

@@ -58,6 +58,7 @@ struct NotchAgentsSettingsControls: View {
             providerRow(.copilot, isOn: $copilot)
             if claude { ClaudeSeatsSettings() }
             if codex { CodexAccountsSettings() }
+            NotchLimitVisibilitySettings(claude: claude, codex: codex)
 
             Divider()
             Text(text.cardsTitle).font(.subheadline.weight(.medium))

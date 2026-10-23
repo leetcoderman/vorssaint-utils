@@ -115,13 +115,19 @@ final class ClaudeSeatLimitsService: ObservableObject {
     func refresh(force: Bool = false, now: Date = Date()) {
         guard !paused, isActive, force || NotchAgentSupport.limitsInUse(pageShown: pageVisible, in: defaults) else { return }
         let onScreen = NotchAgentSupport.limitsOnScreen(pageShown: pageVisible, in: defaults)
-        for index in states.indices where !states[index].checking {
+        for index in states.indices where !states[index].checking && shown(states[index]) {
             guard force || states[index].isDue(at: now, onScreen: onScreen) else { continue }
             states[index].checking = true
             waiting.append(states[index].id)
         }
         startNext()
         publish()
+    }
+
+    /// A seat the island and the lock screen both leave out is not checked,
+    /// watched or warned about.
+    private func shown(_ state: ClaudeSeatState) -> Bool {
+        NotchLimitVisibility.isChecked(.profile(state.id), defaults: defaults)
     }
 
     private func tick() {
@@ -241,7 +247,8 @@ final class ClaudeSeatLimitsService: ObservableObject {
     /// they fetch: a copy newer than the reading in hand is taken, and
     /// counts as a check that answered then.
     private func syncWatchers() {
-        let wanted = paused || !isActive ? [:] : Dictionary(uniqueKeysWithValues: states.map { ($0.id, $0.profile.profileURL) })
+        let wanted = paused || !isActive ? [:]
+            : Dictionary(uniqueKeysWithValues: states.filter(shown).map { ($0.id, $0.profile.profileURL) })
         queue.async { [weak self] in
             guard let self else { return }
             for (id, watcher) in self.watchers where wanted[id] == nil {
@@ -284,7 +291,7 @@ final class ClaudeSeatLimitsService: ObservableObject {
     /// renews, as the usual account does.
     private func noteLimits() {
         let threshold = NotchAgentSupport.limitThreshold(in: defaults) ?? NotchAgentSupport.defaultLimitThreshold
-        for state in states {
+        for state in states where shown(state) {
             guard let account = state.identity?.account, let limits = state.limits else { continue }
             let email = state.identity?.email ?? ""
             for window in AgentLimitSupport.crossings(previous: previous[account], current: limits, threshold: threshold) {
@@ -302,8 +309,13 @@ final class ClaudeSeatLimitsService: ObservableObject {
     }
 
     private func reportRenewals(now: Date) {
+        let hidden = Set(states.filter { !shown($0) }.compactMap { $0.identity?.account })
         for (key, entry) in warned {
             guard let resets = entry.window.resetsAt, resets <= now else { continue }
+            if hidden.contains(where: { key.hasPrefix($0 + ".") }) {
+                warned[key] = nil
+                continue
+            }
             warned[key] = nil
             AgentUsageService.shared.reportSeat(.seatLimitReset(email: entry.email, window: entry.window))
         }

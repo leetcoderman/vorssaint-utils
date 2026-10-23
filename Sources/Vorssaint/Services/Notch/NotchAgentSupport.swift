@@ -111,7 +111,11 @@ struct NotchAgentTile: Identifiable, Equatable {
     var splitsBilling = false
     /// Claude's seats side by side, which take a row.
     var claudeSeats = false
-    /// The API key's half of Claude's card, beside the seats' row.
+    /// How many seats the seats' card shows; none leaves its header and sessions.
+    var seatCount = 0
+    /// The seats' card carries the API key's figures in its header.
+    var seatsShowAPI = false
+    /// The API key's spending on its own, with Claude's plan left out.
     var claudeAPI = false
     /// Trend beside another card, as it sits once seats take the first row.
     var paired = false
@@ -517,10 +521,14 @@ enum NotchAgentSupport {
 
     /// The limits a working agent's ring and reading show: for a Claude-app
     /// session with seats, the seat it runs under; otherwise the account's.
-    static func workingLimits(_ snapshot: AgentUsageSnapshot, provider: AgentProvider) -> AgentLimits? {
+    /// None for an account the island leaves out, which shows the time.
+    static func workingLimits(_ snapshot: AgentUsageSnapshot, provider: AgentProvider,
+                              defaults: UserDefaults = .standard) -> AgentLimits? {
         guard provider == .claude, let session = snapshot.live.first(where: { $0.provider == .claude }),
-              let seat = snapshot.claudeSeat(for: session) else { return snapshot.limits[provider] }
-        return seat.limits
+              let seat = snapshot.claudeSeat(for: session) else {
+            return NotchLimitVisibility.applying(snapshot, in: .island, defaults: defaults).limits[provider]
+        }
+        return NotchLimitVisibility.shows(.profile(seat.id), in: .island, defaults: defaults) ? seat.limits : nil
     }
 
     /// Every digit takes the same width, so a reading's shape, not its value,
@@ -544,10 +552,16 @@ enum NotchAgentSupport {
     /// row per slot; a card grows a row for every session past the first.
     static let splitHeight: CGFloat = 178
     static let stackedSplitHeight: CGFloat = 300
-    /// Claude's seats side by side, each with a line under its meter for a
-    /// note, or one above the other where cards do not pair.
-    static let seatsHeight: CGFloat = 196
-    static let stackedSeatsHeight: CGFloat = 360
+    /// The seats' card without seats: padding, its header and one row of
+    /// sessions, the slots side by side or one above the other.
+    static let seatsBaseHeight: CGFloat = 92
+    static let stackedSeatsBaseHeight: CGFloat = 144
+    /// A row of seats, each with a line under its meter for a note, and one
+    /// seat where they stack.
+    static let seatRowHeight: CGFloat = 104
+    static let stackedSeatHeight: CGFloat = 108
+    /// The API key's figures take a line of their own where seats stack.
+    static let stackedAPILineHeight: CGFloat = 20
     /// The API key's half of Claude's card on its own.
     static let claudeAPIHeight: CGFloat = 116
     /// A limits card with one row of sessions under the meters.
@@ -559,18 +573,26 @@ enum NotchAgentSupport {
 
     /// Codex homes the person added take the place of Codex's one limits
     /// card, the usual home among them when they add it.
+    /// `claudeSeats` is how many seats the page shows, nil without any set
+    /// up; `claudeUsesAPI` says the API key's spending shows. An account the
+    /// page leaves out has no card, and the cards after it close up.
     static func tiles(cards: [NotchAgentCard], providers: [AgentProvider],
                       codexAccounts: [String] = [], claudeUsesAPI: Bool = false,
-                      claudeSeats: Bool = false) -> [NotchAgentTile] {
-        let seats = claudeSeats && providers.contains(.claude)
+                      claudeSeats: Int? = nil, claudeShown: Bool = true, codexShown: Bool = true) -> [NotchAgentTile] {
+        let seats = claudeSeats != nil && providers.contains(.claude)
         return cards.flatMap { card -> [NotchAgentTile] in
             switch card {
             case .limits: return providers.filter(\.reportsLimits).flatMap { provider -> [NotchAgentTile] in
-                // The seats take a row, and the API key's half pairs with Codex.
-                if provider == .claude, seats {
-                    return [NotchAgentTile(card: .limits, provider: provider, claudeSeats: true)]
-                        + (claudeUsesAPI ? [NotchAgentTile(card: .limits, provider: provider, claudeAPI: true)] : [])
+                // The seats take a row, the API key's figures in its header.
+                if provider == .claude, let count = claudeSeats {
+                    guard count > 0 || claudeUsesAPI else { return [] }
+                    return [NotchAgentTile(card: .limits, provider: provider, claudeSeats: true, seatCount: count,
+                                           seatsShowAPI: claudeUsesAPI)]
                 }
+                if provider == .claude, !claudeShown {
+                    return claudeUsesAPI ? [NotchAgentTile(card: .limits, provider: provider, claudeAPI: true)] : []
+                }
+                if provider == .codex, !codexShown { return [] }
                 guard provider == .codex, !codexAccounts.isEmpty else {
                     return [NotchAgentTile(card: .limits, provider: provider,
                                            splitsBilling: provider == .claude && claudeUsesAPI)]
@@ -585,6 +607,21 @@ enum NotchAgentSupport {
             default: return [NotchAgentTile(card: card, provider: nil)]
             }
         }
+    }
+
+    /// The page's tiles as the island shows them: the seats and accounts it
+    /// keeps, so the page and its height read the same.
+    static func pageTiles(_ snapshot: AgentUsageSnapshot, providers: [AgentProvider], codexAccounts: [String],
+                          claudeUsesAPI: Bool, defaults: UserDefaults = .standard) -> [NotchAgentTile] {
+        let seats = !snapshot.claudeSeats.isEmpty
+        let accounts = codexAccounts.filter { NotchLimitVisibility.shows(.profile($0), in: .island, defaults: defaults) }
+        return tiles(cards: cards(in: defaults, claudeSeats: seats), providers: providers, codexAccounts: accounts,
+                     claudeUsesAPI: claudeUsesAPI && NotchLimitVisibility.shows(.claudeAPI, in: .island, defaults: defaults),
+                     claudeSeats: seats ? NotchLimitVisibility.seats(snapshot, in: .island, defaults: defaults).count : nil,
+                     claudeShown: NotchLimitVisibility.shows(.claude, in: .island, defaults: defaults),
+                     // Added homes stand for Codex: none shown leaves it out.
+                     codexShown: codexAccounts.isEmpty
+                        ? NotchLimitVisibility.shows(.codex, in: .island, defaults: defaults) : !accounts.isEmpty)
     }
 
     /// Cards pair up in reading order; a chart, or a card left without a
@@ -614,13 +651,35 @@ enum NotchAgentSupport {
     static func height(of row: [NotchAgentTile], width: CGFloat = .infinity, live: [AgentLiveSession] = []) -> CGFloat {
         let growth = row.map { sessionGrowth($0, live: live, width: width) }.max() ?? 0
         if row.contains(where: \.splitsBilling) { return (width >= pairWidth ? splitHeight : stackedSplitHeight) + growth }
-        if row.contains(where: \.claudeSeats) { return (width >= pairWidth ? seatsHeight : stackedSeatsHeight) + growth }
+        if let seats = row.first(where: \.claudeSeats) {
+            return seatsCardHeight(seats.seatCount, width: width, api: seats.seatsShowAPI) + growth
+        }
         if row.contains(where: \.fullWidth) { return chartHeight }
         let height = row.contains { $0.accountID != nil || $0.namesDefaultAccount } ? accountCardHeight : cardHeight
         // Spending lists its top models under the total.
         let tall = row.contains { $0.showsSessions || $0.card == .spend || $0.paired }
         let api = row.contains(where: \.claudeAPI) ? claudeAPIHeight : 0
         return max(tall ? max(height, sessionCardHeight) : height, api) + growth
+    }
+
+    /// Seats side by side, as many as fit at a readable width: three need
+    /// 460 points and four 560, or they go two to a row; one a row where
+    /// cards do not pair.
+    static func seatColumns(_ count: Int, width: CGFloat) -> Int {
+        guard width >= pairWidth, count > 1 else { return 1 }
+        switch count {
+        case 2: return 2
+        case 3: return width >= 460 ? 3 : 2
+        default: return width >= 560 ? 4 : 2
+        }
+    }
+
+    static func seatsCardHeight(_ count: Int, width: CGFloat, api: Bool) -> CGFloat {
+        guard width >= pairWidth else {
+            return stackedSeatsBaseHeight + CGFloat(count) * stackedSeatHeight + (api ? stackedAPILineHeight : 0)
+        }
+        let columns = seatColumns(count, width: width)
+        return seatsBaseHeight + CGFloat((count + columns - 1) / columns) * seatRowHeight
     }
 
     /// Where a limits card's sessions show: the app and the terminal for

@@ -40,6 +40,7 @@ enum NotchAgentTests {
         AgentSessionPlaceTests.run(suite)
         CodexAccountLimitsTests.run(suite)
         ClaudeSeatTests.run(suite)
+        NotchLimitVisibilityTests.run(suite)
         preferences(suite)
         restingMeters(suite)
         limitUse(suite)

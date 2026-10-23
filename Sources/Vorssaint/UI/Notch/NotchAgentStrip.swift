@@ -141,6 +141,9 @@ struct NotchAgentRestingChoices: DynamicProperty {
     @AppStorage(DefaultsKey.notchAgentsLimitFocus) private var focus = NotchAgentLimitFocus.mostUsed.rawValue
     @AppStorage(DefaultsKey.notchAgentsRestingLayout) private var layoutValue = NotchAgentRestingLayout.single.rawValue
     @AppStorage(DefaultsKey.notchAgentsRestingHidden) private var hidden = ""
+    // Read so turning an account off for the island redraws the meters.
+    @AppStorage(DefaultsKey.notchAgentsIslandHiddenAccounts) private var hiddenAccounts = ""
+    @AppStorage(DefaultsKey.notchAgentsIslandHiddenProfiles) private var hiddenProfiles = ""
 
     var used: Bool { display == NotchAgentLimitDisplay.used.rawValue }
     var layout: NotchAgentRestingLayout { NotchAgentRestingLayout(rawValue: layoutValue) ?? .single }
@@ -148,7 +151,10 @@ struct NotchAgentRestingChoices: DynamicProperty {
     /// The meters the layout shows, in its order. The snapshot already
     /// holds only the agents switched on, in no particular order.
     func meters(_ snapshot: AgentUsageSnapshot, now: Date) -> [NotchAgentRestingMeter] {
-        let shown = NotchAgentSupport.applyingSimulation(snapshot, NotchAgentSupport.simulatedRestingUsage())
+        _ = (hiddenAccounts, hiddenProfiles)
+        // Seats and accounts the island leaves out do not rest either.
+        let shown = NotchAgentSupport.applyingSimulation(NotchLimitVisibility.applying(snapshot, in: .island),
+                                                         NotchAgentSupport.simulatedRestingUsage())
         return NotchAgentSupport.restingSequence(shown, layout: layout, providers: AgentProvider.allCases,
                                                  hidden: NotchAgentSupport.parseRestingHidden(hidden),
                                                  focus: NotchAgentLimitFocus(rawValue: focus) ?? .mostUsed, now: now)

@@ -107,6 +107,9 @@ enum SettingsBackupSupport {
         DefaultsKey.notchAgentsCodexProfiles,
         // So are the Claude seats' profiles.
         DefaultsKey.notchAgentsClaudeSeats,
+        // Which of them each place leaves out goes with them.
+        DefaultsKey.notchAgentsIslandHiddenProfiles,
+        DefaultsKey.notchAgentsLockHiddenProfiles,
         DefaultsKey.dockPreviewRestoreAutohide,
         // The Space arrangement setting to put back, and a Dock restart still
         // owed, belong to this Mac's Dock.

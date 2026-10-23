@@ -81,7 +81,7 @@ final class NotchLockScreenService {
             frames.scene = NotchLockScreenLayout.scene(in: screen, calendar: NotchCalendarSupport.isEnabled(),
                                                        mac: NotchLockScreenSupport.showsMac(),
                                                        ai: NotchLockScreenSupport.showsAgents(),
-                                                       widgets: .stored())
+                                                       widgets: NotchLockScreenWidgets.stored().leavingOutHiddenLimits())
         }
         // The island's own reading of its camera, with the fit the person set.
         let geometry = NotchService.shared.geometry

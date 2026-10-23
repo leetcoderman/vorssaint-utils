@@ -839,9 +839,8 @@ final class NotchService: ObservableObject {
             || ($0 == .claude && seats) }
         guard !providers.isEmpty else { return 0 }
         return NotchAgentSupport.contentHeight(NotchAgentSupport.rows(
-            NotchAgentSupport.tiles(cards: NotchAgentSupport.cards(claudeSeats: seats), providers: providers,
-                                    codexAccounts: accounts, claudeUsesAPI: AgentClaudeBilling.usesAPI(),
-                                    claudeSeats: seats),
+            NotchAgentSupport.pageTiles(usage, providers: providers, codexAccounts: accounts,
+                                        claudeUsesAPI: AgentClaudeBilling.usesAPI()),
             width: width), width: width, live: usage.live)
     }
     var expandedGeometry: NotchGeometry {

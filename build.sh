@@ -289,7 +289,9 @@ if (( TEST )); then
         Sources/Vorssaint/Core/CodexAccountStrings.swift
         Sources/Vorssaint/Core/ClaudeBillingStrings.swift
         Sources/Vorssaint/Core/ClaudeSeatStrings.swift
+        Sources/Vorssaint/Core/NotchLimitVisibilityStrings.swift
         Sources/Vorssaint/Services/Notch/NotchAgentSupport.swift
+        Sources/Vorssaint/Services/Notch/NotchLimitVisibility.swift
         Sources/Vorssaint/Core/NotchLockScreenStrings.swift
         Sources/Vorssaint/Core/NotchLockScreenWidgetStrings.swift
         Sources/Vorssaint/Services/Notch/NotchLockScreenSupport.swift

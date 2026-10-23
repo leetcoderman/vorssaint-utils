@@ -33,13 +33,23 @@ struct NotchLockScreenAICards: View {
     // Read so a billing choice made before locking draws the right card.
     @AppStorage(DefaultsKey.notchAgentsClaudeBilling) private var billing = AgentClaudeBilling.automatic.rawValue
 
+    @AppStorage(DefaultsKey.notchAgentsLockHiddenAccounts) private var hiddenAccounts = ""
+    @AppStorage(DefaultsKey.notchAgentsLockHiddenProfiles) private var hiddenProfiles = ""
+
     /// Whether an API key pays for Claude Code, which splits Claude's card.
     private var claudeUsesAPI: Bool {
         _ = billing
         return AgentClaudeBilling.usesAPI()
     }
 
+    /// The API key's spending is left on for the lock screen.
+    private var showsAPI: Bool {
+        _ = hiddenAccounts
+        return NotchLimitVisibility.shows(.claudeAPI, in: .lockScreen)
+    }
+
     var body: some View {
+        let _ = hiddenProfiles
         let text = FeatureStrings.notchAgents(l10n.language)
         let shown = NotchAgentLimitDisplay(rawValue: display) ?? .remaining
         TimelineView(.periodic(from: .now, by: 10)) { context in
@@ -49,9 +59,12 @@ struct NotchLockScreenAICards: View {
                     Group {
                         switch placed.widget {
                         case .claude where !snapshot.claudeSeats.isEmpty:
-                            NotchAgentClaudeSeatsCard(snapshot: snapshot, now: context.date, display: shown, text: text,
-                                                      wide: true, showsSessions: false)
-                        case .claude where claudeUsesAPI:
+                            // Only the seats left on for the lock screen, side by side.
+                            let seats = NotchLimitVisibility.seats(snapshot, in: .lockScreen)
+                            NotchAgentClaudeSeatsCard(snapshot: snapshot, seats: seats, now: context.date, display: shown,
+                                                      text: text, columns: max(1, seats.count),
+                                                      showsAPI: claudeUsesAPI && showsAPI, showsSessions: false)
+                        case .claude where claudeUsesAPI && showsAPI:
                             NotchAgentClaudeBillingCard(snapshot: snapshot, now: context.date, display: shown, text: text,
                                                         wide: true, showsSessions: false)
                         case .claude, .codex:
