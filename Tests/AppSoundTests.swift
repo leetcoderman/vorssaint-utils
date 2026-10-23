@@ -13,6 +13,75 @@ enum AppSoundTests {
         rendering(suite)
         spacing(suite)
         starts(suite)
+        rules(suite)
+        ruleDefaults(suite)
+    }
+
+    private static func rules(_ suite: TestSuite) {
+        let cli = AppSoundContext(provider: .claude, place: .terminal)
+        let app = AppSoundContext(provider: .claude, place: .app)
+        let unsure = AppSoundContext(provider: .codex, place: nil)
+        let claudeApp = "com.anthropic.claudefordesktop"
+        suite.expect(AppSoundRules.isLooking(at: cli, frontmost: "com.mitchellh.ghostty")
+                        && !AppSoundRules.isLooking(at: cli, frontmost: claudeApp),
+                     "a command-line session is in view only while a terminal is in front")
+        suite.expect(AppSoundRules.isLooking(at: app, frontmost: claudeApp)
+                        && !AppSoundRules.isLooking(at: app, frontmost: "com.apple.Terminal"),
+                     "an app session is in view only while its own app is in front")
+        suite.expect(AppSoundRules.isLooking(at: unsure, frontmost: "com.openai.codex")
+                        && AppSoundRules.isLooking(at: unsure, frontmost: "com.googlecode.iterm2")
+                        && !AppSoundRules.isLooking(at: unsure, frontmost: claudeApp),
+                     "a session whose place is not known counts as in view in a terminal or its agent's app")
+        suite.expect(!AppSoundRules.isLooking(at: .none, frontmost: "com.apple.Terminal")
+                        && !AppSoundRules.isLooking(at: cli, frontmost: nil),
+                     "a moment with no agent, or no app in front, is never in view")
+
+        let terminal = "com.apple.Terminal"
+        suite.expect(!AppSoundRules.allows(.agentFinished, context: cli, quietWhileSharing: true, sharing: true,
+                                           onlyWhenAway: false, frontmost: nil),
+                     "sharing the screen or a call holds a sound back")
+        suite.expect(AppSoundRules.allows(.agentFinished, context: cli, quietWhileSharing: false, sharing: true,
+                                          onlyWhenAway: false, frontmost: nil),
+                     "with the sharing rule off, a call does not hold a sound back")
+        suite.expect(!AppSoundRules.allows(.agentFinished, context: cli, quietWhileSharing: true, sharing: false,
+                                           onlyWhenAway: true, frontmost: terminal)
+                        && !AppSoundRules.allows(.agentStarted, context: cli, quietWhileSharing: true, sharing: false,
+                                                 onlyWhenAway: true, frontmost: terminal),
+                     "an agent's moments wait while its session is in front")
+        suite.expect(AppSoundRules.allows(.agentFinished, context: cli, quietWhileSharing: true, sharing: false,
+                                          onlyWhenAway: false, frontmost: terminal)
+                        && AppSoundRules.allows(.agentFinished, context: cli, quietWhileSharing: true, sharing: false,
+                                                onlyWhenAway: true, frontmost: "com.apple.Safari"),
+                     "an agent's moment plays while you look elsewhere, or with the rule off")
+
+        suite.expect(AppSoundRules.othersRecord([(pid: 10, recording: true)], own: 20)
+                        && !AppSoundRules.othersRecord([(pid: 20, recording: true), (pid: 10, recording: false)], own: 20),
+                     "only another app recording from a microphone counts as a call")
+    }
+
+    private static func ruleDefaults(_ suite: TestSuite) {
+        suite.expect(Defaults.registeredDefaults[DefaultsKey.soundsQuietWhileSharing] as? Bool == true
+                        && Defaults.registeredDefaults[DefaultsKey.soundsOnlyWhenAway] as? Bool == false
+                        && Defaults.registeredDefaults[DefaultsKey.soundsOutput] as? String == AppSoundOutput.current.rawValue,
+                     "sounds start quiet while sharing, heard while looking, on the current output")
+        let name = "vorss.tests.app-sound-rules.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: name) else { return }
+        defer { defaults.removePersistentDomain(forName: name) }
+        let cli = AppSoundContext(provider: .claude, place: .terminal)
+        var asked = false
+        suite.expect(!AppSoundRules.allows(.agentFinished, context: cli, in: defaults, sharing: { true },
+                                           frontmost: { asked = true; return nil }) && !asked,
+                     "an unset sharing rule holds sounds back, and an unset looking rule never asks what is in front")
+        defaults.set(false, forKey: DefaultsKey.soundsQuietWhileSharing)
+        defaults.set(true, forKey: DefaultsKey.soundsOnlyWhenAway)
+        suite.expect(!AppSoundRules.allows(.agentFinished, context: cli, in: defaults, sharing: { true },
+                                           frontmost: { "com.microsoft.VSCode" }),
+                     "the stored looking rule holds an agent's sound while its terminal is in front")
+        suite.expect(AppSoundRules.output(in: defaults) == .current, "an unset output is the current one")
+        defaults.set("alerts", forKey: DefaultsKey.soundsOutput)
+        suite.expect(AppSoundRules.output(in: defaults) == .alerts, "the alert device is kept")
+        defaults.set("speakers", forKey: DefaultsKey.soundsOutput)
+        suite.expect(AppSoundRules.output(in: defaults) == .current, "an unknown output falls back to the current one")
     }
 
     private static func strings(_ suite: TestSuite) {

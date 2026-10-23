@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Vorssaint
 
+import AudioToolbox
 import AVFoundation
 
 /// Plays the app's sounds, each at its own loudness and repeat count, on the
@@ -25,12 +26,22 @@ final class AppSoundService {
     private var players: [AppSound: AVAudioPlayerNode] = [:]
     private var playing = 0
     private var idleTimer: Timer?
+    /// The device the engine was last pointed at, so a play only moves it
+    /// when the chosen output changed.
+    private var device: AudioDeviceID?
 
-    private init() {}
+    private init() {
+        // The output's hardware changed under the engine: point it again
+        // at the next sound.
+        NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine,
+                                               queue: .main) { [weak self] _ in self?.device = nil }
+    }
 
-    /// Plays the sound for a moment when it is switched on.
-    func play(_ sound: AppSound, now: Date = Date()) {
-        guard AppSoundSupport.isOn(sound), AppSoundSupport.isDue(after: lastPlayed[sound], now: now) else { return }
+    /// Plays the sound for a moment when it is switched on and the page's
+    /// rules let it: an agent's moment names its agent in `context`.
+    func play(_ sound: AppSound, context: AppSoundContext = .none, now: Date = Date()) {
+        guard AppSoundSupport.isOn(sound), AppSoundSupport.isDue(after: lastPlayed[sound], now: now),
+              AppSoundRules.allows(sound, context: context) else { return }
         lastPlayed[sound] = now
         preview(sound)
     }
@@ -41,6 +52,7 @@ final class AppSoundService {
               let url = library.url(for: choice),
               let buffer = Self.render(url, gain: Float(AppSoundSupport.volume(sound)),
                                        repeats: AppSoundSupport.repeats(sound)) else { return }
+        route()
         let player = players[sound] ?? attach(for: sound, format: buffer.format)
         player.stop()
         if engine.outputNode.outputFormat(forBus: 0).sampleRate == 0 { return }
@@ -59,6 +71,29 @@ final class AppSoundService {
         engine.attach(player)
         players[sound] = player
         return player
+    }
+
+    /// Points the engine at the chosen output, checked at every sound so
+    /// it follows the Mac's choice when that moves. Moving it stops what
+    /// plays, as the engine must be still to change device.
+    private func route() {
+        guard let wanted = AppSoundSituation.device(for: AppSoundRules.output()), wanted != device,
+              let unit = engine.outputNode.audioUnit else { return }
+        var current = AudioDeviceID(kAudioObjectUnknown)
+        var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+        let read = AudioUnitGetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                        &current, &size)
+        if read == noErr, current == wanted { device = wanted; return }
+        if engine.isRunning {
+            players.values.forEach { $0.stop() }
+            engine.stop()
+            playing = 0
+        }
+        var target = wanted
+        if AudioUnitSetProperty(unit, kAudioOutputUnitProperty_CurrentDevice, kAudioUnitScope_Global, 0,
+                                &target, UInt32(MemoryLayout<AudioDeviceID>.size)) == noErr {
+            device = wanted
+        }
     }
 
     private func start() -> Bool {

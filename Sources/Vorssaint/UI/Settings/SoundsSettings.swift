@@ -12,6 +12,9 @@ struct SoundsSettings: View {
     /// Redraws when a feature with sounds is installed or removed.
     @ObservedObject private var features = FeatureRuntime.shared
     @AppStorage(DefaultsKey.soundsEnabled) private var enabled = true
+    @AppStorage(DefaultsKey.soundsQuietWhileSharing) private var quietWhileSharing = true
+    @AppStorage(DefaultsKey.soundsOnlyWhenAway) private var onlyWhenAway = false
+    @AppStorage(DefaultsKey.soundsOutput) private var output = AppSoundOutput.current.rawValue
     /// Read so the agents' note follows the AI page while this page is open.
     @AppStorage(DefaultsKey.notchAgentsEnabled) private var agentsEnabled = false
     @AppStorage(DefaultsKey.notchEnabled) private var islandEnabled = false
@@ -31,6 +34,22 @@ struct SoundsSettings: View {
                 Text(text.caption)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                Group {
+                    SettingsRow(symbol: "rectangle.inset.filled.and.person.filled", title: text.quietWhileSharing,
+                                caption: text.quietWhileSharingCaption) {
+                        Toggle(text.quietWhileSharing, isOn: $quietWhileSharing).labelsHidden().toggleStyle(.switch)
+                    }
+                    if AppSound.allCases.contains(where: { $0.isAgentMoment && features.isAvailable($0.feature) }) {
+                        SettingsRow(symbol: "eye.slash", title: text.onlyWhenAway, caption: text.onlyWhenAwayCaption) {
+                            Toggle(text.onlyWhenAway, isOn: $onlyWhenAway).labelsHidden().toggleStyle(.switch)
+                        }
+                    }
+                    SettingsMenuRow(symbol: "hifispeaker", title: text.playOn, selection: $output) {
+                        Text(text.outputCurrent).tag(AppSoundOutput.current.rawValue)
+                        Text(text.outputAlerts).tag(AppSoundOutput.alerts.rawValue)
+                    }
+                }
+                .disabled(!enabled)
             }
 
             ForEach(AppSoundGroup.allCases.filter { !sounds(in: $0).isEmpty }) { group in

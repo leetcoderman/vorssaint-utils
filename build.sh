@@ -383,6 +383,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/FanControl/FanControlResumeSupport.swift
         Sources/Vorssaint/Services/Snippets/TextSnippetSupport.swift
         Sources/Vorssaint/Services/Sounds/AppSoundSupport.swift
+        Sources/Vorssaint/Services/Sounds/AppSoundRules.swift
         Sources/Vorssaint/Services/Sounds/AppSoundLibrary.swift
         Sources/Vorssaint/Services/Sounds/AppSoundService.swift
         Sources/Vorssaint/Services/RadialMenu/RadialMenuSupport.swift
