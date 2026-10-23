@@ -908,6 +908,12 @@ enum DefaultsKey {
     /// The Sounds page: one switch for every sound. Each moment's own keys
     /// come from `AppSound`, and register through `AppSound.registeredDefaults`.
     static let soundsEnabled = "soundsEnabled"
+    /// Holds every sound while the screen is shared or an app records from a microphone.
+    static let soundsQuietWhileSharing = "soundsQuietWhileSharing"
+    /// Holds an agent's sounds while its own session is in front.
+    static let soundsOnlyWhenAway = "soundsOnlyWhenAway"
+    /// `AppSoundOutput`: the current output or the alert device.
+    static let soundsOutput = "soundsOutput"
     /// Who pays for Claude Code's requests: `AgentClaudeBilling`.
     static let notchAgentsClaudeBilling = "notchAgentsClaudeBilling"
     /// The API key's prepaid balance in US dollars as entered, when, and what
@@ -1529,6 +1535,9 @@ enum Defaults {
         DefaultsKey.notchAgentsDailyBudget: 0.0,
         DefaultsKey.notchAgentsPriceUpdates: true,
         DefaultsKey.soundsEnabled: true,
+        DefaultsKey.soundsQuietWhileSharing: true,
+        DefaultsKey.soundsOnlyWhenAway: false,
+        DefaultsKey.soundsOutput: AppSoundOutput.current.rawValue,
         DefaultsKey.notchAgentsClaudeBilling: AgentClaudeBilling.automatic.rawValue,
         DefaultsKey.notchAgentsClaudeCredits: 0.0,
         DefaultsKey.notchAgentsClaudeCreditsSince: 0.0,

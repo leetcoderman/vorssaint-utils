@@ -26,6 +26,7 @@ enum AgentUsageEventDeliveryTests {
         var readerSession = 1
         var providers: [AgentProvider] = [.claude, .codex, .copilot]
         let events = Events()
+        func soundContext(_ provider: AgentProvider) -> AppSoundContext { AppSoundContext(provider: provider) }
     }
 
     static func run(_ suite: TestSuite) {
