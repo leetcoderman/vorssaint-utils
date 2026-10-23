@@ -186,4 +186,7 @@ enum AgentUsageEvent: Equatable {
     case seatLimitWarning(email: String, window: AgentLimitWindow)
     case seatLimitReset(email: String, window: AgentLimitWindow)
     case budgetReached(spent: Double, budget: Double)
+    /// One or more sessions wait on the person: a question, an approval, or
+    /// work they interrupted.
+    case needsInput(AgentAttentionNotice)
 }

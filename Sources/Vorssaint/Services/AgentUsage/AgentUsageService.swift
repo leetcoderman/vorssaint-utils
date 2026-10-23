@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Vorssaint
 
+import AppKit
 import Combine
 import Foundation
 import Network
@@ -81,6 +82,7 @@ final class AgentUsageService: ObservableObject {
     /// Seats the person added stand in for the usual profile, which is not
     /// checked meanwhile.
     private var claudeSeatsInUse = false
+    private var frontmostObserver: NSObjectProtocol?
 
     // Confined to `queue`.
     private var readerSession = -1
@@ -125,6 +127,15 @@ final class AgentUsageService: ObservableObject {
     /// always replaces what is on disk, which may hold agents now off.
     private var savedMark: Int?
     private var lastSave = Date.distantPast
+    /// When the sessions waiting on the person are told about.
+    private var attentionSchedule = AgentAttentionSchedule()
+    /// What each Claude session's record says, by its log, from the last read.
+    private var claudeRecords: [String: AgentSessionRegistry.Status] = [:]
+    /// The app in front, as the main thread last heard.
+    private var frontmost: (pid: Int32, bundleID: String?)?
+    /// The most turns open at once since none was, so the last of several
+    /// finishing is heard as all of them done.
+    private var peakTurns = 0
 
     private init() {}
 
@@ -182,6 +193,9 @@ final class AgentUsageService: ObservableObject {
         startTimer()
         queue.async { [self] in
             guard readerSession >= 0 else { return }
+            // What came due while the island was away is told once, a moment
+            // after it comes back.
+            attentionSchedule.hold(until: Date().addingTimeInterval(AgentAttentionPolicy.resumeSettle))
             watch(AgentLogRoot.all(home: home).filter { enabled.contains($0.provider) })
             filesChanged([], rescan: true)
             startPolling()
@@ -216,6 +230,8 @@ final class AgentUsageService: ObservableObject {
         pricesSaved = nil
         snapshot = AgentUsageSnapshot()
         claudeAppChecked = nil
+        if let frontmostObserver { NSWorkspace.shared.notificationCenter.removeObserver(frontmostObserver) }
+        frontmostObserver = nil
         queue.async { [self] in
             readerSession = -1
             readerCancellation = nil
@@ -245,6 +261,36 @@ final class AgentUsageService: ObservableObject {
             claudeSeatsActive = false
             savedMark = nil
             lastSave = .distantPast
+            attentionSchedule = AgentAttentionSchedule()
+            claudeRecords = [:]
+            frontmost = nil
+            peakTurns = 0
+        }
+    }
+
+    /// The person looked at a waiting session, as by tapping its notice:
+    /// no more reminders for that wait. Main thread.
+    func noteSeen(_ target: AgentSessionTarget) {
+        guard running else { return }
+        queue.async { [self] in
+            guard readerSession >= 0 else { return }
+            attentionSchedule.markSeen(file: target.file, in: store.attention)
+        }
+    }
+
+    /// Hands the app in front to the queue, where a waiting session's app
+    /// in front holds its reminder back. Main thread.
+    private func observeFrontmost() {
+        guard frontmostObserver == nil else { return }
+        let note = { [weak self] (app: NSRunningApplication?) in
+            guard let self else { return }
+            let front = app.map { (pid: $0.processIdentifier, bundleID: $0.bundleIdentifier) }
+            self.queue.async { self.frontmost = front }
+        }
+        note(NSWorkspace.shared.frontmostApplication)
+        frontmostObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { notification in
+            note(notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)
         }
     }
 
@@ -304,7 +350,10 @@ final class AgentUsageService: ObservableObject {
 
     /// A seat's limit alert, filtered as the account's are. Main thread.
     func reportSeat(_ event: AgentUsageEvent) {
-        guard running, providers.contains(.claude), NotchAgentSupport.limitThreshold() != nil else { return }
+        guard running, providers.contains(.claude) else { return }
+        if case .seatLimitWarning = event { AppSoundService.shared.play(.agentLimitWarning) }
+        if case .seatLimitReset = event { AppSoundService.shared.play(.agentLimitReset) }
+        guard NotchAgentSupport.limitThreshold() != nil else { return }
         events.send(event)
     }
 
@@ -319,6 +368,7 @@ final class AgentUsageService: ObservableObject {
 
     private func start(session: Int, providers: Set<AgentProvider>, cancellation: Cancellation) {
         startTimer()
+        observeFrontmost()
         queue.async { [self] in
             readerSession = session
             readerCancellation = cancellation
@@ -353,6 +403,9 @@ final class AgentUsageService: ObservableObject {
             readClaudeApp(now: now)
             store.reportsTransitions = true
             store.turnStarted = { [weak self] (provider: AgentProvider) in self?.reportStart(provider) }
+            store.turnInterrupted = { [weak self] (provider: AgentProvider) in self?.reportInterrupt(provider) }
+            // A session found waiting at launch is told once the app settles.
+            attentionSchedule.hold(until: now.addingTimeInterval(AgentAttentionPolicy.resumeSettle))
             previousLimits = store.limits
             // A budget already passed before launch is history, not news.
             let today = Calendar.autoupdatingCurrent.startOfDay(for: now)
@@ -428,7 +481,9 @@ final class AgentUsageService: ObservableObject {
                 stopped = true
             }
             // After the logs, so a turn its last lines ended ends as usual.
-            guard self.closeEndedTurns(self.watchedRoots) || read || stopped else { return }
+            let closed = self.closeEndedTurns(self.watchedRoots)
+            self.checkAttention(now: Date())
+            guard closed || read || stopped else { return }
             self.checkLimits()
             self.schedulePublish()
         }
@@ -443,7 +498,7 @@ final class AgentUsageService: ObservableObject {
     /// Never create a timer here: late work after pause or stop must stay idle.
     private func syncPolling(now: Date = Date()) {
         guard let poller else { return }
-        let wanted = !store.turns.isEmpty || !store.waiting.isEmpty
+        let wanted = !store.turns.isEmpty || !store.waiting.isEmpty || !store.attention.isEmpty
             || cursors.values.contains { now.timeIntervalSince($0.modified) < Self.pollWindow }
         guard wanted != polling else { return }
         polling = wanted
@@ -518,13 +573,87 @@ final class AgentUsageService: ObservableObject {
         Set(cursors.filter { !$0.value.state.runningCommands.isEmpty }.keys)
     }
 
-    /// Ends the Claude turns whose process is gone. True when one was showing.
+    /// Ends the Claude turns whose process is gone, and takes what each
+    /// session's record says it waits on. True when a turn was showing.
     @discardableResult
     private func closeEndedTurns(_ roots: [AgentLogRoot], atLaunch: Bool = false) -> Bool {
-        guard store.showsClaudeTurn else { return false }
+        guard store.showsClaudeTurn || store.awaitsClaude else { return false }
         let folders = roots.filter { $0.provider == .claude }
             .map { $0.url.deletingLastPathComponent().appending(path: "sessions", directoryHint: .isDirectory) }
-        return store.closeEndedTurns(AgentSessionRegistry.read(folders), atLaunch: atLaunch)
+        let registry = AgentSessionRegistry.read(folders)
+        let closed = store.closeEndedTurns(registry, atLaunch: atLaunch)
+        var logs: [String: String] = [:]
+        for cursor in cursors.values where cursor.provider == .claude && cursor.parent == nil {
+            logs[AgentUsageStore.session(of: cursor.path)] = cursor.path
+        }
+        store.applyClaudeStatuses(registry, files: logs, now: Date())
+        claudeRecords = [:]
+        for (session, status) in registry.statuses { if let file = logs[session] { claudeRecords[file] = status } }
+        return closed
+    }
+
+    /// The logs whose turn waits on a tool call that may need an approval:
+    /// Claude's calls other than commands, and Codex's unless it never asks.
+    /// Runs on `queue`.
+    private var pendingCalls: Set<String> {
+        Set(cursors.filter { _, cursor in
+            guard cursor.tracksTurns else { return false }
+            switch cursor.provider {
+            case .claude: return !cursor.state.pendingTools.isEmpty
+            case .codex: return !cursor.state.codexPendingCalls.isEmpty && cursor.state.codexApprovalPolicy != "never"
+            default: return false
+            }
+        }.keys)
+    }
+
+    /// What a tap on a wait's notice brings forward. Runs on `queue`.
+    private func target(for wait: AgentAttention) -> AgentSessionTarget {
+        var target = AgentSessionTarget(file: wait.file)
+        target.pid = wait.provider == .claude ? claudeRecords[wait.file]?.pid : nil
+        if wait.place == .app {
+            switch wait.provider {
+            case .claude: target.bundleID = AgentClaudeAppUsage.bundleIdentifier
+            case .codex: target.bundleID = AgentCodexServer.appIdentifiers.first
+            default: break
+            }
+        }
+        return target
+    }
+
+    /// The waits whose app is in front, where the person can already see
+    /// them. A terminal counts whichever of its tabs is showing. Runs on `queue`.
+    private func focusedWaits() -> Set<String> {
+        guard let frontmost else { return [] }
+        var files = Set<String>()
+        for wait in store.attention.values {
+            let target = target(for: wait)
+            if let pid = target.pid {
+                if AgentProcessTree.ancestors(of: pid).contains(frontmost.pid) { files.insert(wait.file) }
+            } else if let bundleID = target.bundleID, bundleID == frontmost.bundleID {
+                files.insert(wait.file)
+            }
+        }
+        return files
+    }
+
+    /// Tells the sessions that have waited on the person long enough, as
+    /// one notice. Runs on `queue`.
+    private func checkAttention(now: Date) {
+        guard readerSession >= 0, store.reportsTransitions else { return }
+        let inferred = NotchAgentSupport.inputInferred()
+        store.inferQuietWaits(now: now, pending: inferred ? pendingCalls : [],
+                              recorded: Set(claudeRecords.keys))
+        guard !store.attention.isEmpty else { return }
+        let due = attentionSchedule.due(store.attention, now: now, delay: NotchAgentSupport.inputDelay(),
+                                        repeats: NotchAgentSupport.inputRepeats(),
+                                        interruptions: NotchAgentSupport.interruptAlert(), inferred: inferred,
+                                        focused: focusedWaits())
+        guard let first = due.first else { return }
+        report(.needsInput(AgentAttentionNotice(
+            provider: first.provider, project: first.project, cause: first.cause, inferred: first.inferred,
+            waited: max(0, now.timeIntervalSince(first.since)), place: first.place,
+            others: due.dropFirst().map(\.project), reminder: attentionSchedule.isReminder(first),
+            target: target(for: first))))
     }
 
     /// True when the log had entries to apply, or was gone and took a
@@ -553,7 +682,11 @@ final class AgentUsageService: ObservableObject {
                 : cursor.parent ?? cursor.codexParent(among: cursors)
             let finished = store.apply(entries, file: turnFile, provider: provider, tracksTurns: tracksTurns,
                                        parent: parent, modified: cursor.modified, now: now)
-            finished.forEach(report)
+            peakTurns = max(peakTurns, store.turns.count)
+            // The last of several turns that ran together.
+            let allDone = store.turns.isEmpty && peakTurns >= 2
+            if store.turns.isEmpty { peakTurns = 0 }
+            for event in finished { report(event, allDone: allDone) }
         }
         if provider.reader.readsFullHistoryFirst && cursor.offset == 0 {
             AgentLogReader.readCopilotHistory(cursor, shouldContinue: { !cancellation.isCancelled }, line: consume)
@@ -619,6 +752,8 @@ final class AgentUsageService: ObservableObject {
             defer { syncPolling(now: now) }
             let before = inputs
             store.closeIdleTurns(now: now, after: NotchAgentSupport.idleTurn)
+            if store.turns.isEmpty { peakTurns = 0 }
+            checkAttention(now: now)
             store.dropRecords(before: now.addingTimeInterval(-Self.horizon))
             // A log kept open through a long pause reports nothing when work
             // resumes; the day's logs are looked at less often than recent ones.
@@ -749,25 +884,44 @@ final class AgentUsageService: ObservableObject {
         return AppSoundContext(provider: provider, place: place)
     }
 
+    /// A turn the person interrupted, or an error stopped, is only heard.
+    private func reportInterrupt(_ provider: AgentProvider) {
+        let session = readerSession
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.running, self.session == session, self.providers.contains(provider) else { return }
+            AppSoundService.shared.play(.agentInterrupted, context: self.soundContext(provider))
+        }
+    }
+
     /// Filters by the person's choices on the main thread, where they live.
-    /// A finished turn's sound has choices of its own, apart from the notice.
-    private func report(_ event: AgentUsageEvent) {
+    /// Each event's sound has choices of its own, apart from the notice.
+    /// `allDone` marks the last of several turns that ran together.
+    private func report(_ event: AgentUsageEvent, allDone: Bool = false) {
         let session = readerSession
         DispatchQueue.main.async { [weak self] in
             guard let self, self.running, self.session == session else { return }
             switch event {
             case .finished(let provider, let duration, _, _, _):
-                if self.providers.contains(provider) {
-                    AppSoundService.shared.play(.agentFinished, context: self.soundContext(provider))
-                }
-                guard self.providers.contains(provider), let minimum = NotchAgentSupport.finishMinimum(),
-                      duration >= minimum else { return }
+                guard self.providers.contains(provider) else { return }
+                AppSoundService.shared.play(allDone && AppSoundSupport.isOn(.agentsAllDone) ? .agentsAllDone : .agentFinished,
+                                            context: self.soundContext(provider))
+                guard let minimum = NotchAgentSupport.finishMinimum(), duration >= minimum else { return }
             case .limitWarning(let provider, _), .limitReset(let provider, _):
-                guard self.providers.contains(provider), NotchAgentSupport.limitThreshold() != nil else { return }
+                guard self.providers.contains(provider) else { return }
+                if case .limitWarning = event { AppSoundService.shared.play(.agentLimitWarning) }
+                else { AppSoundService.shared.play(.agentLimitReset) }
+                guard NotchAgentSupport.limitThreshold() != nil else { return }
             case .seatLimitWarning, .seatLimitReset:
+                // The seats report through `reportSeat`, which plays their sounds.
                 guard self.providers.contains(.claude), NotchAgentSupport.limitThreshold() != nil else { return }
             case .budgetReached:
+                AppSoundService.shared.play(.agentBudgetReached)
                 guard NotchAgentSupport.dailyBudget() != nil else { return }
+            case .needsInput(let notice):
+                guard self.providers.contains(notice.provider) else { return }
+                AppSoundService.shared.play(.agentNeedsInput, context: self.soundContext(notice.provider))
+                guard notice.cause == .interrupted ? NotchAgentSupport.interruptAlert()
+                        : NotchAgentSupport.inputAlert() else { return }
             }
             self.events.send(event)
         }

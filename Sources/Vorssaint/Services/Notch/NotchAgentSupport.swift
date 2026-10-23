@@ -451,6 +451,31 @@ enum NotchAgentSupport {
         return value.isFinite ? min(3600, max(0, value)) : defaultFinishMinimum
     }
 
+    /// Whether a session waiting on the person earns a notice.
+    static func inputAlert(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: DefaultsKey.notchAgentsInputAlert) as? Bool ?? true
+    }
+
+    /// How long a session waits on the person before the first reminder.
+    static func inputDelay(in defaults: UserDefaults = .standard) -> TimeInterval {
+        let value = defaults.object(forKey: DefaultsKey.notchAgentsInputDelay) as? Double ?? AgentAttentionPolicy.defaultDelay
+        return value.isFinite ? min(3600, max(10, value)) : AgentAttentionPolicy.defaultDelay
+    }
+
+    static func inputRepeats(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.object(forKey: DefaultsKey.notchAgentsInputRepeat) as? Bool ?? true
+    }
+
+    /// Whether a quiet log alone, which may only be a long command, may remind.
+    static func inputInferred(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: DefaultsKey.notchAgentsInputInferred)
+    }
+
+    /// Whether work the person interrupted and left earns one notice.
+    static func interruptAlert(in defaults: UserDefaults = .standard) -> Bool {
+        defaults.bool(forKey: DefaultsKey.notchAgentsInterruptAlert)
+    }
+
     /// Percent used that earns a warning; nil while warnings are off.
     static func limitThreshold(in defaults: UserDefaults = .standard) -> Double? {
         guard defaults.object(forKey: DefaultsKey.notchAgentsLimitAlert) as? Bool ?? true else { return nil }

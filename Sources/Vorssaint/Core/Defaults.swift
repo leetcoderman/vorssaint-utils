@@ -900,6 +900,13 @@ enum DefaultsKey {
     static let notchAgentsReadout = "notchAgentsReadout"
     static let notchAgentsFinishAlert = "notchAgentsFinishAlert"
     static let notchAgentsFinishMinimum = "notchAgentsFinishMinimum"
+    /// A notice when an agent waits on the person, how soon, and whether it
+    /// reminds again; guesses from a quiet log, and interrupted work, apart.
+    static let notchAgentsInputAlert = "notchAgentsInputAlert"
+    static let notchAgentsInputDelay = "notchAgentsInputDelay"
+    static let notchAgentsInputRepeat = "notchAgentsInputRepeat"
+    static let notchAgentsInputInferred = "notchAgentsInputInferred"
+    static let notchAgentsInterruptAlert = "notchAgentsInterruptAlert"
     static let notchAgentsLimitAlert = "notchAgentsLimitAlert"
     static let notchAgentsLimitThreshold = "notchAgentsLimitThreshold"
     static let notchAgentsDailyBudget = "notchAgentsDailyBudget"
@@ -1527,6 +1534,11 @@ enum Defaults {
         DefaultsKey.notchAgentsReadout: NotchAgentReadout.elapsed.rawValue,
         DefaultsKey.notchAgentsFinishAlert: true,
         DefaultsKey.notchAgentsFinishMinimum: NotchAgentSupport.defaultFinishMinimum,
+        DefaultsKey.notchAgentsInputAlert: true,
+        DefaultsKey.notchAgentsInputDelay: AgentAttentionPolicy.defaultDelay,
+        DefaultsKey.notchAgentsInputRepeat: true,
+        DefaultsKey.notchAgentsInputInferred: false,
+        DefaultsKey.notchAgentsInterruptAlert: false,
         DefaultsKey.notchAgentsLimitAlert: true,
         DefaultsKey.notchAgentsLimitThreshold: NotchAgentSupport.defaultLimitThreshold,
         DefaultsKey.notchAgentsDailyBudget: 0.0,
