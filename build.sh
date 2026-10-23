@@ -300,6 +300,7 @@ if (( TEST )); then
         Sources/Vorssaint/Services/Notch/NotchLockScreenWidgets.swift
         Sources/Vorssaint/Services/Notch/NotchLockWallpaperScene.swift
         Sources/Vorssaint/Services/AgentUsage/AgentUsageModels.swift
+        Sources/Vorssaint/Services/AgentUsage/AgentAttention.swift
         Sources/Vorssaint/Services/AgentUsage/AgentPricing.swift
         Sources/Vorssaint/Services/AgentUsage/AgentLogObject.swift
         Sources/Vorssaint/Services/AgentUsage/AgentLogParser.swift

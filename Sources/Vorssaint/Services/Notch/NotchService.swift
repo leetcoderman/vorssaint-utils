@@ -16,6 +16,10 @@ struct NotchNotice: Equatable {
     var notificationID: UUID? = nil
     /// The agent an AI notice is about, which tints its mark.
     var agent: AgentProvider? = nil
+    /// A waiting session's notice: a tap brings its app forward.
+    var target: AgentSessionTarget? = nil
+    /// How long it stays, when not its event's usual time.
+    var duration: TimeInterval? = nil
     /// With the companion on, it takes the symbol's place in the notice and
     /// plays this, so the notice itself is its reaction.
     var mascot: NotchMascotReaction? = nil
@@ -2291,7 +2295,7 @@ final class NotchService: ObservableObject {
             inside = true
             holdNotification(id)
         } else {
-            scheduleNoticeDismissal(after: incoming.event.duration)
+            scheduleNoticeDismissal(after: incoming.duration ?? incoming.event.duration)
         }
         return true
     }
@@ -2309,6 +2313,15 @@ final class NotchService: ObservableObject {
                 if result == .unavailable || result == .uncertain { self.open(.notifications) }
             }
             return
+        }
+        // A waiting session's app comes forward, where the answer is given.
+        if let target = selectedNotice.target {
+            AgentUsageService.shared.noteSeen(target)
+            if let app = target.application() {
+                dismissNotice()
+                app.activate()
+                return
+            }
         }
         open(selectedNotice.event == .download ? .downloads : selectedNotice.event == .timer ? .timer
              : selectedNotice.event == .accessory ? .system : selectedNotice.event == .systemNotification ? .notifications
@@ -4099,7 +4112,34 @@ final class NotchService: ObservableObject {
         case .budgetReached(let spent, _):
             show(NotchNotice(event: .agents, title: text.budgetTitle, detail: AgentFormat.cost(spent),
                              symbol: "dollarsign.circle.fill"))
+        case .needsInput(let wait):
+            showAttention(wait, locale: locale)
         }
+    }
+
+    /// Who waits, where, and what answers it: "Claude is waiting on you",
+    /// "vorssaint-utils · Approve a step". A reminder says how long instead.
+    private func showAttention(_ wait: AgentAttentionNotice, locale: Locale) {
+        let text = FeatureStrings.agentAttention(L10n.shared.language)
+        let agent = wait.provider.displayName
+        let title: String
+        var detail: String
+        if !wait.others.isEmpty {
+            title = text.manyWaiting(wait.others.count + 1)
+            let projects = [wait.project] + wait.others
+            var names: [String] = []
+            for project in projects where !project.isEmpty && !names.contains(project) { names.append(project) }
+            detail = names.prefix(2).joined(separator: ", ")
+            if names.count > 2 { detail += " +\(names.count - 2)" }
+        } else {
+            title = wait.cause == .interrupted ? text.paused(agent) : wait.inferred ? text.maybeWaiting(agent) : text.waiting(agent)
+            let action = wait.inferred ? text.checkSession
+                : wait.reminder ? text.waited(AgentFormat.duration(wait.waited, locale: locale, units: 1, style: .short)) : text.action(wait.cause)
+            detail = [wait.project, action].filter { !$0.isEmpty }.joined(separator: " · ")
+        }
+        show(NotchNotice(event: .agents, title: title, detail: detail,
+                         symbol: wait.cause == .interrupted ? "pause.circle.fill" : "hand.raised.fill",
+                         agent: wait.provider, target: wait.target, duration: 8))
     }
 
     func showCurrentVolume() {

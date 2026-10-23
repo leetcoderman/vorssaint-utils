@@ -22,6 +22,11 @@ struct NotchAgentsSettingsControls: View {
     @AppStorage(DefaultsKey.notchAgentsReadout) private var readout = NotchAgentReadout.elapsed.rawValue
     @AppStorage(DefaultsKey.notchAgentsFinishAlert) private var finishAlert = true
     @AppStorage(DefaultsKey.notchAgentsFinishMinimum) private var finishMinimum = NotchAgentSupport.defaultFinishMinimum
+    @AppStorage(DefaultsKey.notchAgentsInputAlert) private var inputAlert = true
+    @AppStorage(DefaultsKey.notchAgentsInputDelay) private var inputDelay = AgentAttentionPolicy.defaultDelay
+    @AppStorage(DefaultsKey.notchAgentsInputRepeat) private var inputRepeat = true
+    @AppStorage(DefaultsKey.notchAgentsInputInferred) private var inputInferred = false
+    @AppStorage(DefaultsKey.notchAgentsInterruptAlert) private var interruptAlert = false
     @AppStorage(DefaultsKey.notchAgentsLimitAlert) private var limitAlert = true
     @AppStorage(DefaultsKey.notchAgentsLimitThreshold) private var limitThreshold = NotchAgentSupport.defaultLimitThreshold
     @AppStorage(DefaultsKey.notchAgentsDailyBudget) private var dailyBudget = 0.0
@@ -38,6 +43,7 @@ struct NotchAgentsSettingsControls: View {
     @State private var claudeAppFileCheck: Date?
 
     private var text: NotchAgentStrings { FeatureStrings.notchAgents(l10n.language) }
+    private var attention: AgentAttentionStrings { FeatureStrings.agentAttention(l10n.language) }
     private var billingText: ClaudeBillingStrings { FeatureStrings.claudeBilling(l10n.language) }
     private var locale: Locale { l10n.language.formattingLocale() }
 
@@ -124,6 +130,20 @@ struct NotchAgentsSettingsControls: View {
                 }
                 .padding(.leading, settingsRowTextInset)
             }
+            switchRow("hand.raised", attention.inputAlert, isOn: $inputAlert)
+            if inputAlert {
+                Group {
+                    SettingsMenuRow(symbol: "timer", title: attention.inputAfter, selection: $inputDelay) {
+                        ForEach(AgentAttentionPolicy.delays, id: \.self) { seconds in
+                            Text(AgentFormat.duration(seconds, locale: locale, style: .short)).tag(seconds)
+                        }
+                    }
+                    switchRow("bell.badge", attention.inputRepeat, isOn: $inputRepeat)
+                    switchRow("questionmark.circle", attention.inputInferred, isOn: $inputInferred)
+                }
+                .padding(.leading, settingsRowTextInset)
+            }
+            switchRow("pause.circle", attention.interruptAlert, isOn: $interruptAlert)
             switchRow("exclamationmark.triangle", text.limitAlert, isOn: $limitAlert)
             if limitAlert {
                 SettingsMenuRow(symbol: "gauge.with.dots.needle.67percent", title: text.limitAt, selection: $limitThreshold) {
