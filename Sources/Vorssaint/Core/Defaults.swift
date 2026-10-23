@@ -877,6 +877,13 @@ enum DefaultsKey {
     static let notchAgentsClaudeSeats = "notchAgentsClaudeSeats"
     /// The organization's name on the seats' card, as the person writes it.
     static let notchAgentsClaudeOrgLabel = "notchAgentsClaudeOrgLabel"
+    /// The accounts whose limits the island, or the lock screen, leaves out:
+    /// `claude`, `claudeAPI` and `codex` here, comma-separated, and the
+    /// Claude seats' and Codex homes' profile ids in the `Profiles` pair.
+    static let notchAgentsIslandHiddenAccounts = "notchAgentsIslandHiddenAccounts"
+    static let notchAgentsLockHiddenAccounts = "notchAgentsLockHiddenAccounts"
+    static let notchAgentsIslandHiddenProfiles = "notchAgentsIslandHiddenProfiles"
+    static let notchAgentsLockHiddenProfiles = "notchAgentsLockHiddenProfiles"
     static let notchAgentsOpenCode = "notchAgentsOpenCode"
     static let notchAgentsCopilot = "notchAgentsCopilot"
     static let notchAgentsCardOrder = "notchAgentsCardOrder"
@@ -1497,6 +1504,10 @@ enum Defaults {
         DefaultsKey.notchAgentsCodexProfiles: "",
         DefaultsKey.notchAgentsClaudeSeats: "",
         DefaultsKey.notchAgentsClaudeOrgLabel: "",
+        DefaultsKey.notchAgentsIslandHiddenAccounts: "",
+        DefaultsKey.notchAgentsLockHiddenAccounts: "",
+        DefaultsKey.notchAgentsIslandHiddenProfiles: "",
+        DefaultsKey.notchAgentsLockHiddenProfiles: "",
         DefaultsKey.notchAgentsOpenCode: true,
         DefaultsKey.notchAgentsCopilot: true,
         DefaultsKey.notchAgentsCardOrder: "",

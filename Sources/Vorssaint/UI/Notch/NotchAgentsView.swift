@@ -19,6 +19,8 @@ struct NotchAgentsView: View {
     @AppStorage(DefaultsKey.notchAgentsOpenCode) private var opencode = true
     @AppStorage(DefaultsKey.notchAgentsCopilot) private var copilot = true
     @AppStorage(DefaultsKey.notchAgentsClaudeBilling) private var billing = AgentClaudeBilling.automatic.rawValue
+    @AppStorage(DefaultsKey.notchAgentsIslandHiddenAccounts) private var hiddenAccounts = ""
+    @AppStorage(DefaultsKey.notchAgentsIslandHiddenProfiles) private var hiddenProfiles = ""
 
     private var text: NotchAgentStrings { FeatureStrings.notchAgents(l10n.language) }
     private var chosenPeriod: AgentPeriod { AgentPeriod(rawValue: period) ?? .today }
@@ -46,11 +48,9 @@ struct NotchAgentsView: View {
 
     private var rows: [[NotchAgentTile]] {
         // The strings are read here so a change in Settings redraws the page.
-        _ = (cardOrder, hiddenCards)
-        let seats = !usage.snapshot.claudeSeats.isEmpty
-        let tiles = NotchAgentSupport.tiles(cards: NotchAgentSupport.cards(claudeSeats: seats), providers: providers,
-                                            codexAccounts: codexAccounts.map(\.id), claudeUsesAPI: claudeUsesAPI,
-                                            claudeSeats: seats)
+        _ = (cardOrder, hiddenCards, hiddenAccounts, hiddenProfiles)
+        let tiles = NotchAgentSupport.pageTiles(usage.snapshot, providers: providers,
+                                                codexAccounts: codexAccounts.map(\.id), claudeUsesAPI: claudeUsesAPI)
         return NotchAgentSupport.rows(tiles, width: size.width)
     }
 
@@ -110,9 +110,11 @@ struct NotchAgentsView: View {
         switch tile.card {
         case .limits:
             if tile.claudeSeats {
-                NotchAgentClaudeSeatsCard(snapshot: snapshot, now: now,
+                let seats = NotchLimitVisibility.seats(snapshot, in: .island)
+                NotchAgentClaudeSeatsCard(snapshot: snapshot, seats: seats, now: now,
                                           display: NotchAgentLimitDisplay(rawValue: display) ?? .remaining, text: text,
-                                          wide: size.width >= NotchAgentSupport.pairWidth)
+                                          columns: NotchAgentSupport.seatColumns(seats.count, width: size.width),
+                                          showsAPI: tile.seatsShowAPI, wide: size.width >= NotchAgentSupport.pairWidth)
             } else if tile.claudeAPI {
                 NotchAgentClaudeAPICard(snapshot: snapshot, now: now, text: text)
             } else if tile.splitsBilling {
@@ -937,42 +939,31 @@ private struct NotchAgentClaudeAPIFigures: View {
 /// below. The seat the Claude app uses wears a dot.
 struct NotchAgentClaudeSeatsCard: View {
     let snapshot: AgentUsageSnapshot
+    /// The seats this place shows, in the person's order.
+    let seats: [ClaudeSeat]
     let now: Date
     let display: NotchAgentLimitDisplay
     let text: NotchAgentStrings
-    /// Seats side by side; one above the other where cards do not pair.
-    let wide: Bool
+    /// Seats a row; one means they stack, as every card does where cards
+    /// do not pair.
+    let columns: Int
+    /// The API key's figures in the header.
+    var showsAPI = false
     /// The lock screen lists the sessions in Agents at work instead.
     var showsSessions = true
+    /// The sessions' slots side by side.
+    var wide = true
     @ObservedObject private var l10n = L10n.shared
     @AppStorage(DefaultsKey.notchAgentsClaudeOrgLabel) private var organization = ""
 
     private let provider = AgentProvider.claude
-    private var seats: ClaudeSeatStrings { FeatureStrings.claudeSeats(l10n.language) }
+    private var seatText: ClaudeSeatStrings { FeatureStrings.claudeSeats(l10n.language) }
 
     var body: some View {
         NotchAgentCardChrome {
             VStack(alignment: .leading, spacing: 6) {
-                NotchAgentCardHeader(title: seats.subscriptionTitle, symbol: provider.symbol, tint: provider.tint,
-                                     provider: provider) {
-                    let label = organization.trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !label.isEmpty { NotchAgentChip(text: label, tint: NotchTopBarPalette.yellow) }
-                    if let plan = snapshot.activeClaudeSeat?.plan { NotchAgentChip(text: plan, tint: provider.tint) }
-                }
-                let layout = wide ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
-                    : AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
-                layout {
-                    ForEach(Array(snapshot.claudeSeats.enumerated()), id: \.element.id) { index, seat in
-                        if index > 0 {
-                            Rectangle().fill(.white.opacity(0.1))
-                                .frame(width: wide ? 1 : nil, height: wide ? nil : 1)
-                                .frame(maxWidth: wide ? nil : .infinity, maxHeight: wide ? .infinity : nil)
-                        }
-                        NotchAgentClaudeSeatColumn(seat: seat, now: now, display: display, text: text)
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                    }
-                }
-                .fixedSize(horizontal: false, vertical: true)
+                header
+                if !seats.isEmpty { grid }
                 if showsSessions {
                     Spacer(minLength: 0)
                     sessions
@@ -980,6 +971,61 @@ struct NotchAgentClaudeSeatsCard: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// Claude's mark with the organization and plan, and the API key's
+    /// figures on the right, or on a line of their own where seats stack.
+    @ViewBuilder private var header: some View {
+        let chips = HStack(spacing: 6) {
+            NotchAgentMark(provider: provider, size: 13, tint: provider.tint)
+                .frame(width: 17, height: 17)
+                .accessibilityLabel(seatText.subscriptionTitle)
+            let label = organization.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !label.isEmpty { NotchAgentChip(text: label, tint: NotchTopBarPalette.yellow) }
+            if let plan = (seats.first(where: \.active) ?? snapshot.activeClaudeSeat)?.plan {
+                NotchAgentChip(text: plan, tint: provider.tint)
+            }
+        }
+        if showsAPI && columns == 1 && !wide {
+            VStack(alignment: .leading, spacing: 4) {
+                chips.frame(height: 17)
+                NotchAgentClaudeAPIPill(snapshot: snapshot, now: now, text: text)
+            }
+        } else {
+            HStack(spacing: 6) {
+                chips
+                Spacer(minLength: 4)
+                if showsAPI { NotchAgentClaudeAPIPill(snapshot: snapshot, now: now, text: text) }
+            }
+            .frame(height: 17)
+        }
+    }
+
+    /// The seats in rows of `columns`, a line between each.
+    private var grid: some View {
+        let rows = stride(from: 0, to: seats.count, by: max(1, columns)).map {
+            Array(seats[$0..<min($0 + max(1, columns), seats.count)])
+        }
+        return VStack(alignment: .leading, spacing: 8) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                if index > 0 { Rectangle().fill(.white.opacity(0.1)).frame(height: 1) }
+                HStack(alignment: .top, spacing: 12) {
+                    ForEach(0..<max(1, columns), id: \.self) { slot in
+                        if slot > 0 {
+                            Rectangle().fill(.white.opacity(slot < row.count ? 0.1 : 0)).frame(width: 1)
+                                .frame(maxHeight: .infinity)
+                        }
+                        if slot < row.count {
+                            NotchAgentClaudeSeatColumn(seat: row[slot], now: now, display: display, text: text)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                        } else {
+                            Color.clear.frame(maxWidth: .infinity, maxHeight: 1)
+                        }
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     /// The Claude app's sessions, each naming its seat, and Claude Code's
@@ -1137,8 +1183,8 @@ private struct NotchAgentClaudeSeatColumn: View {
     }
 }
 
-/// The API key's half of Claude's card, beside Codex once the seats take
-/// the first row.
+/// The API key's half of Claude's card on its own, while the island leaves
+/// Claude's plan out.
 struct NotchAgentClaudeAPICard: View {
     let snapshot: AgentUsageSnapshot
     let now: Date
@@ -1156,6 +1202,80 @@ struct NotchAgentClaudeAPICard: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The API key's figures in the seats' card header: today, this month and
+/// what is left of the credits entered, in one pill whose label stands out
+/// from the organization and plan chips beside it.
+private struct NotchAgentClaudeAPIPill: View {
+    let snapshot: AgentUsageSnapshot
+    let now: Date
+    let text: NotchAgentStrings
+    @ObservedObject private var l10n = L10n.shared
+    // Read so a balance saved in Settings redraws the pill.
+    @AppStorage(DefaultsKey.notchAgentsClaudeCredits) private var balance = 0.0
+    @AppStorage(DefaultsKey.notchAgentsClaudeCreditsSince) private var since = 0.0
+
+    static let tint = Color(red: 0x64 / 255, green: 0xD2 / 255, blue: 1)
+
+    var body: some View {
+        let _ = (balance, since)
+        let billing = FeatureStrings.claudeBilling(l10n.language)
+        let strings = FeatureStrings.limitVisibility(l10n.language)
+        let calendar = Calendar.autoupdatingCurrent
+        let month = calendar.dateInterval(of: .month, for: now)?.start ?? calendar.startOfDay(for: now)
+        let days = snapshot.days
+        let today = days.last.flatMap { calendar.isDate($0.start, inSameDayAs: now) ? [$0] : nil } ?? []
+        let left = AgentClaudeCredits.stored()?.remaining(days: days)
+        HStack(spacing: 6) {
+            Text(billing.api.uppercased())
+                .font(.system(size: 8.5, weight: .bold))
+                .tracking(0.3)
+                .foregroundStyle(.black)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 1.5)
+                .background(Self.tint, in: Capsule(style: .continuous))
+            figure(text.period(.today), cost(today))
+            divider
+            figure(strings.apiMonth, cost(days.filter { $0.start >= month }))
+            if let left {
+                divider
+                Text(strings.creditsLeft(AgentFormat.cost(max(0, left))))
+                    .agentAmount()
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(Color.green)
+            }
+        }
+        .lineLimit(1)
+        .padding(.leading, 3)
+        .padding(.trailing, 8)
+        .padding(.vertical, 2)
+        .background(Self.tint.opacity(0.1), in: Capsule(style: .continuous))
+        .overlay(Capsule(style: .continuous).strokeBorder(Self.tint.opacity(0.35), lineWidth: 0.5))
+        .fixedSize()
+        .help(text.valueNote)
+    }
+
+    private var divider: some View { Rectangle().fill(.white.opacity(0.12)).frame(width: 1, height: 10) }
+
+    private func figure(_ label: String, _ value: String) -> some View {
+        HStack(spacing: 4) {
+            Text(label).font(.system(size: 9.5)).foregroundStyle(.secondary)
+            Text(value)
+                .agentAmount()
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(.white.opacity(0.9))
+                .contentTransition(.numericText())
+        }
+    }
+
+    /// Only Claude Code outside the Claude app, as the API card counts it.
+    private func cost(_ days: [AgentBucket]) -> String {
+        let totals = days.map(\.claudeAPI)
+        return (totals.contains { $0.unpriced > 0 } ? "≥ " : "") + AgentFormat.cost(totals.reduce(0) { $0 + $1.cost })
     }
 }
 
