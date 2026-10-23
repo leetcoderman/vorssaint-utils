@@ -3,22 +3,42 @@
 
 import Foundation
 
-/// The Sounds page in Settings.
+/// The Sounds page in Settings: what every moment shares. Each group's
+/// title and moments are in its own file, beside `agentSounds`.
 struct SoundStrings {
     let title: String
+    /// Under the page's switch.
     let caption: String
     let playSounds: String
-    let agentsTitle: String
-    /// Agents are heard only while the island's AI page reads them.
-    let agentsOff: String
-    let finished: String
-    let finishedCaption: String
-    let started: String
-    let startedCaption: String
     let sound: String
     let volume: String
     let play: String
     let unavailable: String
+    let repeats: String
+    let once: String
+    /// A repeat count above one, as in "2 times".
+    let timesFormat: String
+    /// The sections of the sound menu.
+    let sourceSystem: String
+    let sourceTones: String
+    let sourceYours: String
+    let addSound: String
+
+    func repeatCount(_ count: Int) -> String { count == 1 ? once : String(format: timesFormat, count) }
+}
+
+/// One moment's row.
+struct SoundMoment {
+    let title: String
+    let caption: String
+}
+
+/// A section of the Sounds page. `note` shows while the group's
+/// `noteApplies`, as when its feature is installed but not switched on.
+struct SoundGroupStrings {
+    let title: String
+    let note: String?
+    let moments: [AppSound: SoundMoment]
 }
 
 extension FeatureStrings {
@@ -26,214 +46,229 @@ extension FeatureStrings {
         switch language {
         case .enUS: return SoundStrings(
             title: "Sounds",
-            caption: "Choose which moments make a sound, which sound and how loud.",
+            caption: "Choose which moments make a sound, which sound and how loud. Above 100%, a sound is boosted.",
             playSounds: "Play sounds",
-            agentsTitle: "AI agents",
-            agentsOff: "Agent sounds play while the AI page of the Dynamic Island is on.",
-            finished: "Agent finished",
-            finishedCaption: "When an agent ends its turn and its work waits for you.",
-            started: "Agent started",
-            startedCaption: "When an agent starts working. A soft tick by default.",
             sound: "Sound",
             volume: "Volume",
             play: "Play",
-            unavailable: "Not on this Mac")
+            unavailable: "Not on this Mac",
+            repeats: "Repeat",
+            once: "Once",
+            timesFormat: "%d times",
+            sourceSystem: "macOS alerts",
+            sourceTones: "Apple tones",
+            sourceYours: "Your sounds",
+            addSound: "Add a sound…")
         case .ptBR: return SoundStrings(
             title: "Sons",
-            caption: "Escolha quais momentos tocam um som, qual som e com que volume.",
+            caption: "Escolha quais momentos tocam um som, qual som e com que volume. Acima de 100%, o som é amplificado.",
             playSounds: "Tocar sons",
-            agentsTitle: "Agentes de IA",
-            agentsOff: "Os sons dos agentes tocam enquanto a página de IA da Dynamic Island está ativada.",
-            finished: "Agente terminou",
-            finishedCaption: "Quando um agente encerra a vez e o trabalho espera por você.",
-            started: "Agente começou",
-            startedCaption: "Quando um agente começa a trabalhar. Um toque suave por padrão.",
             sound: "Som",
             volume: "Volume",
             play: "Tocar",
-            unavailable: "Não está neste Mac")
+            unavailable: "Não está neste Mac",
+            repeats: "Repetir",
+            once: "Uma vez",
+            timesFormat: "%d vezes",
+            sourceSystem: "Alertas do macOS",
+            sourceTones: "Tons da Apple",
+            sourceYours: "Seus sons",
+            addSound: "Adicionar som…")
         case .tr: return SoundStrings(
             title: "Sesler",
-            caption: "Hangi anların ses çıkaracağını, hangi sesi ve ne kadar yüksek olacağını seçin.",
+            caption: "Hangi anların ses çıkaracağını, hangi sesi ve ne kadar yüksek olacağını seçin. %100’ün üzerinde ses güçlendirilir.",
             playSounds: "Sesleri çal",
-            agentsTitle: "Yapay zekâ ajanları",
-            agentsOff: "Ajan sesleri, Dynamic Island’ın yapay zekâ sayfası açıkken çalar.",
-            finished: "Ajan bitirdi",
-            finishedCaption: "Bir ajan sırasını bitirdiğinde ve işi sizi beklediğinde.",
-            started: "Ajan başladı",
-            startedCaption: "Bir ajan çalışmaya başladığında. Varsayılan olarak hafif bir tık.",
             sound: "Ses",
             volume: "Ses düzeyi",
             play: "Çal",
-            unavailable: "Bu Mac’te yok")
+            unavailable: "Bu Mac’te yok",
+            repeats: "Tekrarla",
+            once: "Bir kez",
+            timesFormat: "%d kez",
+            sourceSystem: "macOS uyarıları",
+            sourceTones: "Apple tonları",
+            sourceYours: "Sesleriniz",
+            addSound: "Ses ekle…")
         case .ru: return SoundStrings(
             title: "Звуки",
-            caption: "Выберите, какие моменты озвучиваются, каким звуком и насколько громко.",
+            caption: "Выберите, какие моменты озвучиваются, каким звуком и насколько громко. Выше 100% звук усиливается.",
             playSounds: "Воспроизводить звуки",
-            agentsTitle: "ИИ-агенты",
-            agentsOff: "Звуки агентов воспроизводятся, пока включена страница ИИ в Dynamic Island.",
-            finished: "Агент закончил",
-            finishedCaption: "Когда агент завершает ход и работа ждёт вас.",
-            started: "Агент начал",
-            startedCaption: "Когда агент начинает работу. По умолчанию звучит тихий щелчок.",
             sound: "Звук",
             volume: "Громкость",
             play: "Воспроизвести",
-            unavailable: "Нет на этом Mac")
+            unavailable: "Нет на этом Mac",
+            repeats: "Повтор",
+            once: "Один раз",
+            timesFormat: "%d раза",
+            sourceSystem: "Сигналы macOS",
+            sourceTones: "Мелодии Apple",
+            sourceYours: "Ваши звуки",
+            addSound: "Добавить звук…")
         case .es: return SoundStrings(
             title: "Sonidos",
-            caption: "Elige qué momentos suenan, con qué sonido y a qué volumen.",
+            caption: "Elige qué momentos suenan, con qué sonido y a qué volumen. Por encima del 100%, el sonido se amplifica.",
             playSounds: "Reproducir sonidos",
-            agentsTitle: "Agentes de IA",
-            agentsOff: "Los sonidos de los agentes suenan mientras la página de IA de la Dynamic Island está activada.",
-            finished: "Agente terminado",
-            finishedCaption: "Cuando un agente termina su turno y su trabajo te espera.",
-            started: "Agente iniciado",
-            startedCaption: "Cuando un agente empieza a trabajar. Un toque suave por omisión.",
             sound: "Sonido",
             volume: "Volumen",
             play: "Reproducir",
-            unavailable: "No está en este Mac")
+            unavailable: "No está en este Mac",
+            repeats: "Repetir",
+            once: "Una vez",
+            timesFormat: "%d veces",
+            sourceSystem: "Alertas de macOS",
+            sourceTones: "Tonos de Apple",
+            sourceYours: "Tus sonidos",
+            addSound: "Añadir sonido…")
         case .sk: return SoundStrings(
             title: "Zvuky",
-            caption: "Vyberte, ktoré chvíle zaznejú, akým zvukom a ako nahlas.",
+            caption: "Vyberte, ktoré chvíle zaznejú, akým zvukom a ako nahlas. Nad 100 % sa zvuk zosilní.",
             playSounds: "Prehrávať zvuky",
-            agentsTitle: "AI agenti",
-            agentsOff: "Zvuky agentov znejú, kým je zapnutá stránka AI v Dynamic Island.",
-            finished: "Agent dokončil",
-            finishedCaption: "Keď agent ukončí svoj ťah a práca na vás čaká.",
-            started: "Agent začal",
-            startedCaption: "Keď agent začne pracovať. Predvolene jemné ťuknutie.",
             sound: "Zvuk",
             volume: "Hlasitosť",
             play: "Prehrať",
-            unavailable: "Nie je v tomto Macu")
+            unavailable: "Nie je v tomto Macu",
+            repeats: "Opakovať",
+            once: "Raz",
+            timesFormat: "%d-krát",
+            sourceSystem: "Upozornenia macOS",
+            sourceTones: "Tóny Apple",
+            sourceYours: "Vaše zvuky",
+            addSound: "Pridať zvuk…")
         case .de: return SoundStrings(
             title: "Töne",
-            caption: "Wähle, welche Momente einen Ton spielen, welchen und wie laut.",
+            caption: "Wähle, welche Momente einen Ton spielen, welchen und wie laut. Über 100 % wird der Ton verstärkt.",
             playSounds: "Töne abspielen",
-            agentsTitle: "KI-Agenten",
-            agentsOff: "Agententöne spielen, solange die KI-Seite der Dynamic Island aktiviert ist.",
-            finished: "Agent fertig",
-            finishedCaption: "Wenn ein Agent seinen Zug beendet und die Arbeit auf dich wartet.",
-            started: "Agent gestartet",
-            startedCaption: "Wenn ein Agent zu arbeiten beginnt. Standardmäßig ein leises Ticken.",
             sound: "Ton",
             volume: "Lautstärke",
             play: "Abspielen",
-            unavailable: "Nicht auf diesem Mac")
+            unavailable: "Nicht auf diesem Mac",
+            repeats: "Wiederholen",
+            once: "Einmal",
+            timesFormat: "%d-mal",
+            sourceSystem: "macOS-Hinweistöne",
+            sourceTones: "Apple-Töne",
+            sourceYours: "Deine Töne",
+            addSound: "Ton hinzufügen …")
         case .fr: return SoundStrings(
             title: "Sons",
-            caption: "Choisissez quels moments émettent un son, lequel et à quel volume.",
+            caption: "Choisissez quels moments émettent un son, lequel et à quel volume. Au-delà de 100 %, le son est amplifié.",
             playSounds: "Lire les sons",
-            agentsTitle: "Agents IA",
-            agentsOff: "Les sons des agents sont lus tant que la page IA de la Dynamic Island est activée.",
-            finished: "Agent terminé",
-            finishedCaption: "Quand un agent termine son tour et que son travail vous attend.",
-            started: "Agent démarré",
-            startedCaption: "Quand un agent commence à travailler. Un léger tic par défaut.",
             sound: "Son",
             volume: "Volume",
             play: "Écouter",
-            unavailable: "Absent de ce Mac")
+            unavailable: "Absent de ce Mac",
+            repeats: "Répéter",
+            once: "Une fois",
+            timesFormat: "%d fois",
+            sourceSystem: "Alertes macOS",
+            sourceTones: "Tonalités Apple",
+            sourceYours: "Vos sons",
+            addSound: "Ajouter un son…")
         case .it: return SoundStrings(
             title: "Suoni",
-            caption: "Scegli quali momenti emettono un suono, quale suono e a che volume.",
+            caption: "Scegli quali momenti emettono un suono, quale suono e a che volume. Oltre il 100% il suono viene amplificato.",
             playSounds: "Riproduci suoni",
-            agentsTitle: "Agenti IA",
-            agentsOff: "I suoni degli agenti si sentono mentre la pagina IA della Dynamic Island è attiva.",
-            finished: "Agente terminato",
-            finishedCaption: "Quando un agente termina il suo turno e il lavoro ti aspetta.",
-            started: "Agente avviato",
-            startedCaption: "Quando un agente inizia a lavorare. Un tocco leggero per impostazione predefinita.",
             sound: "Suono",
             volume: "Volume",
             play: "Riproduci",
-            unavailable: "Non presente su questo Mac")
+            unavailable: "Non presente su questo Mac",
+            repeats: "Ripeti",
+            once: "Una volta",
+            timesFormat: "%d volte",
+            sourceSystem: "Avvisi di macOS",
+            sourceTones: "Toni Apple",
+            sourceYours: "I tuoi suoni",
+            addSound: "Aggiungi suono…")
         case .ja: return SoundStrings(
             title: "サウンド",
-            caption: "どの場面で音を鳴らすか、どの音をどの音量で鳴らすかを選びます。",
+            caption: "どの場面で音を鳴らすか、どの音をどの音量で鳴らすかを選びます。100%を超えると音が増幅されます。",
             playSounds: "サウンドを再生",
-            agentsTitle: "AIエージェント",
-            agentsOff: "エージェントのサウンドは、Dynamic IslandのAIページがオンのときに鳴ります。",
-            finished: "エージェントが完了",
-            finishedCaption: "エージェントがターンを終え、作業があなたを待っているとき。",
-            started: "エージェントが開始",
-            startedCaption: "エージェントが作業を始めたとき。デフォルトは控えめな音です。",
             sound: "サウンド",
             volume: "音量",
             play: "再生",
-            unavailable: "このMacにはありません")
+            unavailable: "このMacにはありません",
+            repeats: "繰り返し",
+            once: "1回",
+            timesFormat: "%d回",
+            sourceSystem: "macOSの通知音",
+            sourceTones: "Appleのトーン",
+            sourceYours: "自分のサウンド",
+            addSound: "サウンドを追加…")
         case .ko: return SoundStrings(
             title: "사운드",
-            caption: "어떤 순간에 소리를 낼지, 어떤 소리를 얼마나 크게 낼지 선택하세요.",
+            caption: "어떤 순간에 소리를 낼지, 어떤 소리를 얼마나 크게 낼지 선택하세요. 100%를 넘으면 소리가 증폭됩니다.",
             playSounds: "사운드 재생",
-            agentsTitle: "AI 에이전트",
-            agentsOff: "에이전트 사운드는 Dynamic Island의 AI 페이지가 켜져 있을 때 재생됩니다.",
-            finished: "에이전트 완료",
-            finishedCaption: "에이전트가 차례를 마치고 작업이 사용자를 기다릴 때.",
-            started: "에이전트 시작",
-            startedCaption: "에이전트가 작업을 시작할 때. 기본값은 부드러운 소리입니다.",
             sound: "사운드",
             volume: "음량",
             play: "재생",
-            unavailable: "이 Mac에 없음")
+            unavailable: "이 Mac에 없음",
+            repeats: "반복",
+            once: "1회",
+            timesFormat: "%d회",
+            sourceSystem: "macOS 알림음",
+            sourceTones: "Apple 톤",
+            sourceYours: "내 사운드",
+            addSound: "사운드 추가…")
         case .uk: return SoundStrings(
             title: "Звуки",
-            caption: "Виберіть, які моменти звучать, яким звуком і наскільки гучно.",
+            caption: "Виберіть, які моменти звучать, яким звуком і наскільки гучно. Понад 100% звук підсилюється.",
             playSounds: "Відтворювати звуки",
-            agentsTitle: "ШІ-агенти",
-            agentsOff: "Звуки агентів лунають, поки ввімкнено сторінку ШІ в Dynamic Island.",
-            finished: "Агент завершив",
-            finishedCaption: "Коли агент завершує хід і робота чекає на вас.",
-            started: "Агент почав",
-            startedCaption: "Коли агент починає роботу. Типово лунає тихе клацання.",
             sound: "Звук",
             volume: "Гучність",
             play: "Відтворити",
-            unavailable: "Немає на цьому Mac")
+            unavailable: "Немає на цьому Mac",
+            repeats: "Повтор",
+            once: "Один раз",
+            timesFormat: "%d рази",
+            sourceSystem: "Сигнали macOS",
+            sourceTones: "Мелодії Apple",
+            sourceYours: "Ваші звуки",
+            addSound: "Додати звук…")
         case .zhHans: return SoundStrings(
             title: "声音",
-            caption: "选择哪些时刻发出声音、用什么声音以及音量多大。",
+            caption: "选择哪些时刻发出声音、用什么声音以及音量多大。超过 100% 时声音会被增强。",
             playSounds: "播放声音",
-            agentsTitle: "AI 智能体",
-            agentsOff: "智能体声音会在 Dynamic Island 的 AI 页面开启时播放。",
-            finished: "智能体完成",
-            finishedCaption: "当智能体结束本轮工作、等待你查看时。",
-            started: "智能体开始",
-            startedCaption: "当智能体开始工作时。默认是轻柔的提示音。",
             sound: "声音",
             volume: "音量",
             play: "播放",
-            unavailable: "此 Mac 上没有")
+            unavailable: "此 Mac 上没有",
+            repeats: "重复",
+            once: "一次",
+            timesFormat: "%d 次",
+            sourceSystem: "macOS 提示音",
+            sourceTones: "Apple 铃声",
+            sourceYours: "你的声音",
+            addSound: "添加声音…")
         case .zhTW: return SoundStrings(
             title: "聲音",
-            caption: "選擇哪些時刻發出聲音、使用什麼聲音以及音量大小。",
+            caption: "選擇哪些時刻發出聲音、使用什麼聲音以及音量大小。超過 100% 時聲音會被增強。",
             playSounds: "播放聲音",
-            agentsTitle: "AI 代理",
-            agentsOff: "代理的聲音會在 Dynamic Island 的 AI 頁面開啟時播放。",
-            finished: "代理已完成",
-            finishedCaption: "當代理結束這一輪工作、等待你查看時。",
-            started: "代理已開始",
-            startedCaption: "當代理開始工作時。預設為輕柔的提示音。",
             sound: "聲音",
             volume: "音量",
             play: "播放",
-            unavailable: "此 Mac 上沒有")
+            unavailable: "此 Mac 上沒有",
+            repeats: "重複",
+            once: "一次",
+            timesFormat: "%d 次",
+            sourceSystem: "macOS 提示聲",
+            sourceTones: "Apple 鈴聲",
+            sourceYours: "你的聲音",
+            addSound: "加入聲音…")
         case .zhHK: return SoundStrings(
             title: "聲音",
-            caption: "選擇哪些時刻發出聲音、用甚麼聲音及音量大小。",
+            caption: "選擇哪些時刻發出聲音、用甚麼聲音及音量大小。超過 100% 時聲音會被增強。",
             playSounds: "播放聲音",
-            agentsTitle: "AI 代理",
-            agentsOff: "代理的聲音會在 Dynamic Island 的 AI 頁面開啟時播放。",
-            finished: "代理已完成",
-            finishedCaption: "當代理完成這一輪工作、等待你查看時。",
-            started: "代理已開始",
-            startedCaption: "當代理開始工作時。預設為輕柔的提示音。",
             sound: "聲音",
             volume: "音量",
             play: "播放",
-            unavailable: "此 Mac 上沒有")
+            unavailable: "此 Mac 上沒有",
+            repeats: "重複",
+            once: "一次",
+            timesFormat: "%d 次",
+            sourceSystem: "macOS 提示聲",
+            sourceTones: "Apple 鈴聲",
+            sourceYours: "你的聲音",
+            addSound: "加入聲音…")
         }
     }
 }
