@@ -923,6 +923,7 @@ enum DefaultsKey {
     static let notchReturnHome = "notchReturnHome"
     static let notchHomeModule = "notchHomeModule"
     static let notchOpensActivity = "notchOpensActivity"
+    static let notchPointerDriven = "notchPointerDriven"
     static let notchHiddenModules = "notchHiddenModules"
     static let notchModuleOrder = "notchModuleOrder"
     static let notchNavigationStyle = "notchNavigationStyle"
@@ -1538,6 +1539,7 @@ enum Defaults {
         DefaultsKey.notchReturnHome: false,
         DefaultsKey.notchHomeModule: NotchModule.controls.rawValue,
         DefaultsKey.notchOpensActivity: true,
+        DefaultsKey.notchPointerDriven: false,
         DefaultsKey.notchHiddenModules: "",
         DefaultsKey.notchModuleOrder: "",
         DefaultsKey.notchNavigationStyle: NotchNavigationStyle.topBar.rawValue,

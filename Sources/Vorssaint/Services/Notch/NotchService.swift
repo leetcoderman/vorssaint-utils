@@ -211,6 +211,8 @@ final class NotchService: ObservableObject {
     private var activityPickerMenuOpen = false
     private var hoverState = NotchHoverState()
     private var openedByHover = false
+    /// Whether the pointer has been on the open island since it opened.
+    private var pointerReachedOpening = false
     /// A click inside the open island, which may be what brings another app forward.
     private var clickedSinceOpening = false
     /// Whether the open detail was reached from inside the island, so Escape
@@ -516,7 +518,7 @@ final class NotchService: ObservableObject {
     var showsCompactActivityPicker: Bool {
         (inside || activityPickerMenuOpen) && !hiddenInFullscreen && !hiddenUntilHover && !expanded && !peeking
             && !dragPlaceholder && notice == nil && captureControls == nil
-            && compactActivities.count > 1
+            && compactActivities.count > 1 && !pointerDriven
     }
 
     var compactActivityPickerLayout: NotchActivityPickerLayout {
@@ -1302,6 +1304,7 @@ final class NotchService: ObservableObject {
         activityPickerMenuOpen = false
         hoverState = NotchHoverState()
         openedByHover = false
+        pointerReachedOpening = false
         removeEventMonitors()
         removeScreenEdgeClickMonitors()
         removeCaptureControlsClickThrough()
@@ -1322,10 +1325,12 @@ final class NotchService: ObservableObject {
 
     /// Opening without a page shows what the closed island is already
     /// presenting: a mirrored banner, or an activity unless the user turned
-    /// that off. Otherwise the reopening preference decides.
+    /// that off or the pointer drives the island, which returns to the last
+    /// page. Otherwise the reopening preference decides.
     var reopeningDestination: (module: NotchModule, appPanel: Bool, sections: Bool) {
         if !expanded {
-            let opensActivity = UserDefaults.standard.object(forKey: DefaultsKey.notchOpensActivity) as? Bool ?? true
+            let opensActivity = !pointerDriven
+                && UserDefaults.standard.object(forKey: DefaultsKey.notchOpensActivity) as? Bool ?? true
             let activity = notice?.notificationID != nil ? NotchModule.notifications
                 : opensActivity ? compactActivity?.module : nil
             if let activity, modules.contains(activity) { return (activity, false, false) }
@@ -1388,6 +1393,7 @@ final class NotchService: ObservableObject {
         }
         let metric = metric.flatMap { metricIsAvailable($0) ? $0 : nil }
         let closesCommandBar = showingCommandBar
+        let wasExpanded = expanded
         let changesPresentation = !expanded || selected != destination || closesCommandBar
             || showingAppPanel != appPanel || selectedMetric != metric || showingSections != sections
         if changesPresentation, destination == .tools, !appPanel, !sections, metric == nil {
@@ -1424,6 +1430,7 @@ final class NotchService: ObservableObject {
             if notice?.notificationID != nil { noticeWork?.cancel(); noticeWork = nil; notice = nil; noticeExpanded = false }
         }
         inside = windowHost?.containsHover(NSEvent.mouseLocation) == true
+        pointerReachedOpening = inside || wasExpanded && pointerReachedOpening
         installEventMonitors()
         syncVisibleConsumers()
         if takeFocus { panel.makeKey() }
@@ -1444,6 +1451,7 @@ final class NotchService: ObservableObject {
             if noticeExpanded { notice = nil; noticeExpanded = false }
             expanded = false
             openedByHover = false
+            pointerReachedOpening = false
             peeking = false
             selectedMetric = nil
             showingAppPanel = false
@@ -1514,6 +1522,7 @@ final class NotchService: ObservableObject {
             && windowHost?.isConcealedForMissionControl == false
             : windowHost?.containsHover(point) == true || pointerOverChildWindow(point)
         hoverState.update(pointerInside: inside)
+        if inside, expanded { pointerReachedOpening = true }
         // The music strip names its song only while the pointer stays on the
         // island: leaving ends it, and a name left from before goes on return.
         let unnamesMusic = inside != wasInside && endMusicStripHover(leaving: !inside)
@@ -1580,8 +1589,7 @@ final class NotchService: ObservableObject {
             hoverWork = work
             let delay = NotchSupport.sanitizedHoverDelay(UserDefaults.standard.double(forKey: DefaultsKey.notchHoverDelay))
             DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
-        } else if holdsNotification
-                    || NotchSupport.closesOnPointerExit(expanded: expanded, peeking: peeking, openedByHover: openedByHover) {
+        } else if holdsNotification || closesOnPointerExit {
             let work = DispatchWorkItem { [weak self] in
                 guard let self else { return }
                 self.hoverWork = nil
@@ -1591,13 +1599,29 @@ final class NotchService: ObservableObject {
                 self.releaseNotification()
                 guard !self.pinned, !self.heldDrag, !self.keepsWorkingSurface, self.captureControls == nil,
                       !AssistiveKeyboard.ownsCocoaPoint(NSEvent.mouseLocation),
-                      NotchSupport.closesOnPointerExit(expanded: self.expanded, peeking: self.peeking, openedByHover: self.openedByHover) else { return }
+                      self.closesOnPointerExit else { return }
                 self.collapse()
             }
             hoverWork = work
             let delay = NotchSupport.closeDelay()
             DispatchQueue.main.asyncAfter(deadline: .now() + (expanded || noticeExpanded ? delay : 0.12), execute: work)
         }
+    }
+
+    /// The command bar belongs to the keyboard, so only the other openings
+    /// close as a pointer that reached them leaves.
+    private var closesOnPointerExit: Bool {
+        NotchSupport.closesOnPointerExit(expanded: expanded, peeking: peeking, openedByHover: openedByHover,
+                                         pointerReached: pointerReachedOpening && !showingCommandBar && pointerDriven)
+    }
+
+    /// Opening on hover with the pointer in charge: hovering goes straight to
+    /// the last page instead of offering the activity picker, and leaving
+    /// closes the island however it was opened.
+    private var pointerDriven: Bool {
+        UserDefaults.standard.bool(forKey: DefaultsKey.notchOpenOnHover)
+            && UserDefaults.standard.bool(forKey: DefaultsKey.notchHoverExpands)
+            && UserDefaults.standard.bool(forKey: DefaultsKey.notchPointerDriven)
     }
 
     /// AppKit reports hover from the mouse moves it receives, and those can
@@ -1622,7 +1646,7 @@ final class NotchService: ObservableObject {
         // until the pointer leaves, with or without an emphasis to follow.
         let keepsMusicStrip = musicStripNamed || musicStripHeldSong != nil
         let watching = ((hoverEmphasized || followsClosedHover || keepsMusicStrip) && captureHover == nil
-                || !entered && NotchSupport.closesOnPointerExit(expanded: expanded, peeking: peeking, openedByHover: openedByHover))
+                || !entered && closesOnPointerExit)
             && captureControls == nil && !pinned && !heldDrag && !hiddenUntilHover && !keepsWorkingSurface
             // Once watching, a pointer that leaves and slips back unreported is still seen.
             && (!hoverExitMonitors.isEmpty || windowHost?.containsHover(point) == true)
@@ -4580,6 +4604,7 @@ extension NotchService {
             if notice?.notificationID != nil { noticeWork?.cancel(); noticeWork = nil; notice = nil; noticeExpanded = false }
         }
         inside = windowHost?.containsHover(NSEvent.mouseLocation) == true
+        pointerReachedOpening = false
         installEventMonitors()
         syncVisibleConsumers()
         panel.makeKey()

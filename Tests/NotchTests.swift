@@ -2296,6 +2296,9 @@ enum NotchTests {
         suite.expect(NotchSupport.closesOnPointerExit(expanded: true, peeking: false, openedByHover: true)
                && NotchSupport.closesOnPointerExit(expanded: false, peeking: true, openedByHover: false),
                "hover presentations still close when the pointer leaves")
+        suite.expect(NotchSupport.closesOnPointerExit(expanded: true, peeking: false, openedByHover: false, pointerReached: true)
+               && !NotchSupport.closesOnPointerExit(expanded: false, peeking: false, openedByHover: false, pointerReached: true),
+               "a direct opening the pointer reached closes as it leaves when the pointer drives the island")
         var hover = NotchHoverState()
         hover.close(pointerInside: true)
         for _ in 0..<4 { hover.update(pointerInside: true) }

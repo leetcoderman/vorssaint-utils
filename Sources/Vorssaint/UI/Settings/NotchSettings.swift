@@ -49,6 +49,7 @@ struct NotchSettings: View {
     @AppStorage(DefaultsKey.notchReturnHome) private var returnHome = false
     @AppStorage(DefaultsKey.notchHomeModule) private var homeModule = NotchModule.controls.rawValue
     @AppStorage(DefaultsKey.notchOpensActivity) private var opensActivity = true
+    @AppStorage(DefaultsKey.notchPointerDriven) private var pointerDriven = false
     @AppStorage(DefaultsKey.notchHiddenModules) private var hidden = ""
     @AppStorage(DefaultsKey.notchModuleOrder) private var order = ""
     @AppStorage(DefaultsKey.notchVolume) private var volume = true
@@ -134,7 +135,7 @@ struct NotchSettings: View {
          String(brightness), String(keyboardLight),
          String(microphone), String(battery), String(clipboard), String(clipboardWindow), clipboardCardSize,
          String(capture), String(trackChange), captureAction, String(showInCaptures),
-         String(returnHome), homeModule, String(opensActivity), String(scratchpad),
+         String(returnHome), homeModule, String(opensActivity), String(pointerDriven), String(scratchpad),
          String(agentsEnabled), String(watchEnabled), String(keepAwakeActivity), String(shortcutEnabled)]
     }
 
@@ -699,7 +700,10 @@ struct NotchSettings: View {
                 }
                 if hover {
                     hoverDelayControl
-                    if hoverExpand { closeDelayControl }
+                    if hoverExpand {
+                        closeDelayControl
+                        switchRow("cursorarrow.rays", editor.pointerDriven, caption: editor.pointerDrivenHint, isOn: $pointerDriven)
+                    }
                 }
                 switchRow("keyboard", l10n.s.quickToolShortcutToggle, isOn: $shortcutEnabled)
                 if shortcutEnabled {
