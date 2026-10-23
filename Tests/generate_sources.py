@@ -1033,6 +1033,7 @@ def main():
               "    private var watchesHiddenHover:", "    func hover(",
               "    func shelfDragMoved(",
               "    private func syncHoverExitMonitoring(", "    private func removeHoverExitMonitors(",
+              "    private var closesOnPointerExit:", "    private var pointerDriven:",
               "    var showsCompactActivityPicker:",
               "    private func missionControlDidRestore()",
               "    private var holdsNotification:", "    private func holdNotification(",
@@ -1266,6 +1267,8 @@ def main():
           + declaration(notch, "    func setPageLayer(")
           + declaration(notch, "    func openAppPanel(")
           + declaration(notch, "    func showMetric(")
+          + declaration(notch, "    private var pointerDriven:").replace("    private ", "    ", 1)
+              .replace("UserDefaults.standard", "ReviewDefaults.current!")
           + declaration(notch, "    var reopeningDestination:")
               .replace("UserDefaults.standard", "ReviewDefaults.current!")
           + declaration(notch, "    func openActivity(")

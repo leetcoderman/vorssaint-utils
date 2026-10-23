@@ -2124,8 +2124,11 @@ enum NotchSupport {
 
     /// Direct openings are dismissed explicitly, never by the pointer's
     /// initial position at the menu bar or in the application being used.
-    static func closesOnPointerExit(expanded: Bool, peeking: Bool, openedByHover: Bool) -> Bool {
-        peeking || (expanded && openedByHover)
+    /// An island driven by the pointer also closes a direct opening once the
+    /// pointer has been on it.
+    static func closesOnPointerExit(expanded: Bool, peeking: Bool, openedByHover: Bool,
+                                    pointerReached: Bool = false) -> Bool {
+        peeking || (expanded && (openedByHover || pointerReached))
     }
 
     /// Another app becoming active closes the open island like a click away.
