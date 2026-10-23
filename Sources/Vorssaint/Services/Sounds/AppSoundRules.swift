@@ -66,7 +66,7 @@ enum AppSoundRules {
     /// Whether a moment's sound plays now, after its own switch and spacing.
     static func allows(_ sound: AppSound, context: AppSoundContext, quietWhileSharing: Bool, sharing: Bool,
                        onlyWhenAway: Bool, frontmost: String?) -> Bool {
-        if quietWhileSharing, sharing { return false }
+        if quietWhileSharing, sharing, !sound.ringsThroughQuiet { return false }
         if onlyWhenAway, sound.isAgentMoment, isLooking(at: context, frontmost: frontmost) { return false }
         return true
     }
@@ -96,6 +96,9 @@ extension AppSound {
     /// A moment about one agent's session, which "only when you're not
     /// looking" holds back while that session is in front.
     var isAgentMoment: Bool { feature == .notchAgents }
+    /// An alarm someone set rings through a call or a shared screen, as it
+    /// always has: missing it costs more than hearing it.
+    var ringsThroughQuiet: Bool { self == .timerFinished || self == .watchFinished }
 }
 
 /// What the Mac is doing now, read when a sound is about to play.

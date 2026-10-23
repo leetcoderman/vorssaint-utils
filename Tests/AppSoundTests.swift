@@ -16,6 +16,10 @@ enum AppSoundTests {
         rules(suite)
         ruleDefaults(suite)
         agentMoments(suite)
+        legacyKeys(suite)
+        snippetSoundMigration(suite)
+        existingUserDefaults(suite)
+        builtInPadlock(suite)
     }
 
     private static func rules(_ suite: TestSuite) {
@@ -136,11 +140,11 @@ enum AppSoundTests {
         let all = AppSound.allCases.flatMap { [$0.enabledKey, $0.nameKey, $0.volumeKey, $0.repeatsKey] }
         suite.expect(Set(all).count == all.count, "no two moments share a key")
         for sound in AppSound.allCases {
-            suite.expect(Defaults.registeredDefaults[sound.enabledKey] as? Bool == false
+            suite.expect(Defaults.registeredDefaults[sound.enabledKey] as? Bool == sound.defaultEnabled
                             && Defaults.registeredDefaults[sound.nameKey] as? String == sound.defaultChoice
                             && Defaults.registeredDefaults[sound.volumeKey] as? Double == sound.defaultVolume
                             && Defaults.registeredDefaults[sound.repeatsKey] as? Int == sound.defaultRepeats,
-                         "\(sound.rawValue) is registered off, with its own sound, loudness and repeats, so backups carry it")
+                         "\(sound.rawValue) is registered as it was, with its own sound, loudness and repeats, so backups carry it")
             suite.expect(AppSoundChoice(id: sound.defaultChoice) != nil, "\(sound.rawValue) has a readable default sound")
         }
         suite.expect(AppSound.agentFinished.defaultVolume > AppSound.agentStarted.defaultVolume,
@@ -311,5 +315,143 @@ enum AppSoundTests {
         store.apply([.turnActive(now.addingTimeInterval(NotchAgentSupport.idleTurn + 1))], file: "a", provider: .codex,
                     tracksTurns: true, modified: now, now: now.addingTimeInterval(NotchAgentSupport.idleTurn + 1))
         suite.expect(heard.count == 2, "work resuming after an approval is the same turn, not a new start")
+    }
+
+    private static func legacyKeys(_ suite: TestSuite) {
+        suite.expect(AppSound.timerFinished.enabledKey == DefaultsKey.notchTimerSoundEnabled
+                        && AppSound.watchFinished.enabledKey == DefaultsKey.notchWatchSound
+                        && AppSound.screenLock.enabledKey == DefaultsKey.notchLockSounds
+                        && AppSound.snippetExpanded.enabledKey == DefaultsKey.snippetSoundEnabled,
+                     "the sounds older pages switched keep their switches, so both pages agree")
+        suite.expect(AppSound.snippetExpanded.nameKey == DefaultsKey.snippetSoundName,
+                     "the snippet sound keeps the sound chosen on the snippets page")
+        suite.expect(AppSound.timerFinished.volumeKey == "soundTimerFinishedVolume"
+                        && AppSound.snippetExpanded.repeatsKey == "soundSnippetExpandedRepeats",
+                     "a moment with an older switch still gets keys of its own for loudness and repeats")
+        let registered = AppSound.registeredDefaults
+        suite.expect(AppSound.allCases.compactMap(\.legacyEnabledKey).allSatisfy { registered[$0] == nil }
+                        && registered[DefaultsKey.snippetSoundName] == nil,
+                     "older pages' keys are left to the pages that register them")
+        suite.expect(Defaults.registeredDefaults[DefaultsKey.notchTimerSoundEnabled] as? Bool == true
+                        && Defaults.registeredDefaults[DefaultsKey.notchWatchSound] as? Bool == true
+                        && Defaults.registeredDefaults[DefaultsKey.notchLockSounds] as? Bool == false
+                        && Defaults.registeredDefaults[DefaultsKey.snippetSoundEnabled] as? Bool == false,
+                     "older switches keep their registered defaults")
+        let backedUp = SettingsBackupSupport.exportKeys()
+        suite.expect(AppSound.allCases.allSatisfy {
+            backedUp.isSuperset(of: [$0.enabledKey, $0.nameKey, $0.volumeKey, $0.repeatsKey])
+        }, "every moment's keys are backed up")
+
+        let name = "vorss.tests.app-sound-legacy.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: name) else { return }
+        defer { defaults.removePersistentDomain(forName: name) }
+        let installed: (AppFeature) -> Bool = { _ in true }
+        suite.expect(AppSoundSupport.isOn(.timerFinished, in: defaults, isAvailable: installed)
+                        && AppSoundSupport.isOn(.watchFinished, in: defaults, isAvailable: installed),
+                     "the alarm and the watch sound, as they always have, before anyone sets them")
+        defaults.set(false, forKey: DefaultsKey.notchTimerSoundEnabled)
+        suite.expect(!AppSoundSupport.isOn(.timerFinished, in: defaults, isAvailable: installed),
+                     "the alarm switched off on the island's page is off on the Sounds page")
+        defaults.set(true, forKey: DefaultsKey.notchLockSounds)
+        suite.expect(AppSoundSupport.isOn(.screenLock, in: defaults, isAvailable: installed),
+                     "padlock sounds switched on before the Sounds page still play")
+    }
+
+    private static func snippetSoundMigration(_ suite: TestSuite) {
+        let root = FileManager.default.temporaryDirectory.appending(path: "vorss-snippet-sound-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        for file in ["Tink.aiff", "Hero.aiff"] {
+            FileManager.default.createFile(atPath: root.appending(path: file).path, contents: Data())
+        }
+        let library = AppSoundLibrary(systemFolder: root, toneFolder: root.appending(path: "none"), userFolders: [],
+                                      builtIns: [:])
+        let name = "vorss.tests.app-sound-snippet.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: name) else { return }
+        defer { defaults.removePersistentDomain(forName: name) }
+
+        suite.expect(AppSoundSupport.choice(.snippetExpanded, in: defaults, library: library)?.id == "system:Tink",
+                     "an unset snippet sound is Tink, as it always was")
+        defaults.set("Hero", forKey: DefaultsKey.snippetSoundName)
+        suite.expect(AppSoundSupport.choice(.snippetExpanded, in: defaults, library: library)?.id == "system:Hero",
+                     "a snippet sound chosen on the snippets page plays from the Sounds page")
+        defaults.set("Gone", forKey: DefaultsKey.snippetSoundName)
+        suite.expect(AppSoundSupport.choice(.snippetExpanded, in: defaults, library: library)?.id == "system:Tink",
+                     "a snippet sound this Mac lacks falls back to Tink, as the snippets page did")
+        guard let hero = AppSoundSupport.choice(.snippetExpanded, in: defaults, library: library) else { return }
+        suite.expect(AppSoundSupport.playsAsAlert(.snippetExpanded, choice: hero, in: defaults),
+                     "a snippet sound left at full, once, plays through the sound server as before")
+        defaults.set(1.5, forKey: AppSound.snippetExpanded.volumeKey)
+        suite.expect(!AppSoundSupport.playsAsAlert(.snippetExpanded, choice: hero, in: defaults),
+                     "a boosted snippet sound is rendered so it can be louder")
+        defaults.removeObject(forKey: AppSound.snippetExpanded.volumeKey)
+        suite.expect(!AppSoundSupport.playsAsAlert(.snippetExpanded, choice: AppSoundChoice(source: .tone, name: "Modern/Chord"),
+                                                   in: defaults),
+                     "a tone is rendered, since the sound server may not read it")
+        suite.expect(!AppSoundSupport.playsAsAlert(.timerFinished, choice: hero, in: defaults),
+                     "the alarm keeps playing as it did, outside the sound server")
+    }
+
+    private static func existingUserDefaults(_ suite: TestSuite) {
+        let name = "vorss.tests.app-sound-existing.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: name) else { return }
+        defer { defaults.removePersistentDomain(forName: name) }
+        // Someone who set these pages before the Sounds page and nothing
+        // since. Registered values are read from the table rather than
+        // registered here, since registration is shared by the whole process.
+        let registered = Defaults.registeredDefaults
+        defaults.set(true, forKey: DefaultsKey.snippetSoundEnabled)
+        defaults.set("Pop", forKey: DefaultsKey.snippetSoundName)
+        defaults.set(true, forKey: DefaultsKey.notchLockSounds)
+        func stored(_ key: String) -> Any? { defaults.object(forKey: key) ?? registered[key] }
+        for sound in [AppSound.timerFinished, .watchFinished, .screenLock, .snippetExpanded] {
+            suite.expect(stored(sound.volumeKey) as? Double == 1 && stored(sound.repeatsKey) as? Int == 1
+                            && AppSoundSupport.volume(sound, in: defaults) == 1 && AppSoundSupport.repeats(sound, in: defaults) == 1
+                            && AppSoundSupport.isDue(after: Date(), now: Date().addingTimeInterval(0.1), gap: sound.minimumGap),
+                         "\(sound.rawValue) plays at full, once, as often as it happens, as it did")
+        }
+        suite.expect(stored(AppSound.timerFinished.nameKey) as? String == "system:Glass"
+                        && stored(AppSound.watchFinished.nameKey) as? String == "system:Glass"
+                        && stored(AppSound.screenLock.nameKey) as? String == AppSoundChoice.padlockClosing.id
+                        && AppSoundChoice(id: stored(AppSound.snippetExpanded.nameKey) as? String ?? "")?.id == "system:Pop",
+                     "each keeps the sound it made: Glass, the padlock and the snippet sound chosen")
+        suite.expect(stored(AppSound.snippetExpanded.enabledKey) as? Bool == true
+                        && stored(AppSound.screenLock.enabledKey) as? Bool == true
+                        && stored(AppSound.timerFinished.enabledKey) as? Bool == true
+                        && stored(AppSound.watchFinished.enabledKey) as? Bool == true,
+                     "each keeps its switch as it was set or registered")
+    }
+
+    private static func builtInPadlock(_ suite: TestSuite) {
+        suite.expect(AppSoundChoice(id: AppSoundChoice.padlockClosing.id) == AppSoundChoice.padlockClosing
+                        && AppSoundChoice.padlockOpening.source == .builtIn,
+                     "the padlock reads back as the app's own sound")
+        let root = FileManager.default.temporaryDirectory.appending(path: "vorss-padlock-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        // The padlock lives outside every folder the library lists.
+        let framework = root.appending(path: "framework")
+        try? FileManager.default.createDirectory(at: framework, withIntermediateDirectories: true)
+        let lock = framework.appending(path: "lock.aif"), tink = root.appending(path: "Tink.aiff")
+        for file in [lock, tink] { FileManager.default.createFile(atPath: file.path, contents: Data()) }
+        let library = AppSoundLibrary(systemFolder: root, toneFolder: root.appending(path: "none"), userFolders: [],
+                                      builtIns: [AppSoundChoice.padlockClosing: lock])
+        suite.expect(library.choices.map(\.id) == ["system:Tink"],
+                     "the padlock is never listed for other moments")
+        suite.expect(library.url(for: AppSoundChoice.padlockClosing) == lock,
+                     "the padlock is found where macOS keeps it")
+        let name = "vorss.tests.app-sound-padlock.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: name) else { return }
+        defer { defaults.removePersistentDomain(forName: name) }
+        suite.expect(AppSoundSupport.choice(.screenLock, in: defaults, library: library) == AppSoundChoice.padlockClosing,
+                     "locking plays the padlock until another sound is chosen")
+        let bare = AppSoundLibrary(systemFolder: root, toneFolder: root.appending(path: "none"), userFolders: [],
+                                   builtIns: [:])
+        suite.expect(AppSoundSupport.choice(.screenLock, in: defaults, library: bare)?.id == "system:Tink",
+                     "without the padlock, locking still makes a sound")
+        let real = AppSoundLibrary.builtInSounds()
+        suite.expect(real[AppSoundChoice.padlockClosing] == NotchLockScreenSupport.soundURL(locking: true)
+                        && real[AppSoundChoice.padlockOpening] == NotchLockScreenSupport.soundURL(locking: false),
+                     "the padlock closes on locking and opens on unlocking, as before")
     }
 }
