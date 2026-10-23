@@ -445,9 +445,10 @@ enum SettingsDirectory {
                                       keywords: [s.hotkeyToggle]),
                 SettingsDirectoryItem(page: .sounds, title: FeatureStrings.sounds(language).title,
                                       icon: "speaker.wave.2",
-                                      keywords: [FeatureStrings.sounds(language).playSounds,
-                                                 FeatureStrings.sounds(language).finished,
-                                                 FeatureStrings.sounds(language).started]),
+                                      keywords: [FeatureStrings.sounds(language).playSounds]
+                                        + AppSoundGroup.allCases.flatMap { group in
+                                            group.strings(language).moments.values.map(\.title)
+                                        }),
                 SettingsDirectoryItem(page: .advanced, title: s.tabAdvanced, icon: "wrench.and.screwdriver"),
                 SettingsDirectoryItem(page: .about, title: s.tabAbout, icon: "info.circle",
                                       keywords: [s.reviewIntro, s.reviewHighlights]),
