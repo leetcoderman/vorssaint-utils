@@ -172,9 +172,9 @@ enum NotchAgentSupport {
         orderedCards(defaults.string(forKey: DefaultsKey.notchAgentsCardOrder) ?? "", claudeSeats: claudeSeats)
     }
 
-    /// The page's order once Claude's seats take the first row: Trend
-    /// beside Codex, Projects beside Spending, and Resets beside Activity.
-    static let claudeSeatsOrder = "limits,trend,projects,spend,resets,activity"
+    /// The page's order once Claude's seats take the first row:
+    /// Spending beside Codex, Projects beside Trend, and Resets beside Activity.
+    static let claudeSeatsOrder = "limits,spend,projects,trend,resets,activity"
 
     /// The cards a saved order lists, without retired or repeated ones.
     static func orderedCards(_ saved: String, claudeSeats: Bool = false) -> [NotchAgentCard] {
