@@ -171,23 +171,25 @@ enum ClaudeSeatTests {
 
     private static func layout(_ suite: TestSuite) {
         let cards = NotchAgentSupport.orderedCards("", claudeSeats: true).filter { !$0.retired }
-        suite.expect(Array(cards.prefix(3)) == [.limits, .trend, .spend]
+        suite.expect(Array(cards.prefix(6)) == [.limits, .trend, .projects, .spend, .resets, .activity]
                         && NotchAgentSupport.orderedCards("", claudeSeats: false).prefix(3) == [.limits, .spend, .trend]
                         && NotchAgentSupport.orderedCards("spend,trend", claudeSeats: true).prefix(2) == [.spend, .trend],
-                     "with seats a new page puts Trend before Spending, and a saved order is kept")
+                     "with seats a new page pairs Trend, Projects and Resets with their partners, and a saved order is kept")
         let tiles = NotchAgentSupport.tiles(cards: [.limits, .trend, .spend, .projects, .resets, .activity],
                                             providers: [.claude, .codex], claudeUsesAPI: true, claudeSeats: 2)
         let rows = NotchAgentSupport.rows(tiles, width: 600)
-        suite.expect(rows.map { $0.map(\.card) } == [[.limits], [.limits, .trend], [.spend, .projects], [.resets], [.activity]]
+        suite.expect(rows.map { $0.map(\.card) } == [[.limits], [.limits, .trend], [.spend, .projects], [.resets, .activity]]
                         && rows[0].first?.claudeSeats == true && rows[0].first?.seatsShowAPI == true
                         && rows[0].first?.seatCount == 2 && !tiles.contains(where: \.claudeAPI)
                         && rows[1].first?.provider == .codex && Set(tiles.map(\.id)).count == tiles.count,
-                     "seats take the first row with the API key's figures in its header, and Codex pairs with Trend")
+                     "seats take the first row with the API key's figures in its header, Codex pairs with Trend and Resets with Activity")
         suite.expect(NotchAgentSupport.height(of: rows[0], width: 600) == NotchAgentSupport.seatsBaseHeight + NotchAgentSupport.seatRowHeight
                         && NotchAgentSupport.height(of: rows[0], width: 360)
                             == NotchAgentSupport.stackedSeatsBaseHeight + 2 * NotchAgentSupport.stackedSeatHeight
                                 + NotchAgentSupport.stackedAPILineHeight
                         && NotchAgentSupport.height(of: rows[1], width: 600) == NotchAgentSupport.sessionCardHeight
+                        && NotchAgentSupport.height(of: rows[3], width: 600) == NotchAgentSupport.pairedActivityHeight
+                        && rows[3].allSatisfy { !$0.fullWidth }
                         && NotchAgentSupport.rows(tiles, width: 360).allSatisfy { $0.count == 1 },
                      "the seats' row and its pairs have room for what they show, and a narrow page stacks every card")
         suite.expect(NotchAgentSupport.seatColumns(3, width: 504) == 3 && NotchAgentSupport.seatColumns(3, width: 420) == 2
@@ -204,6 +206,7 @@ enum ClaudeSeatTests {
         let without = NotchAgentSupport.tiles(cards: [.limits, .trend, .spend], providers: [.claude, .codex],
                                               claudeUsesAPI: true)
         suite.expect(without.first?.splitsBilling == true && without.first(where: { $0.card == .trend })?.fullWidth == true
+                        && NotchAgentSupport.tiles(cards: [.activity], providers: [.claude]).first?.fullWidth == true
                         && NotchAgentSupport.tiles(cards: [.limits], providers: [.codex], claudeSeats: 2).allSatisfy { !$0.claudeSeats },
                      "without seats, or without Claude, the page is today's")
     }
