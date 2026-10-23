@@ -31,6 +31,9 @@ final class AgentUsageStore {
     private var replies: [String: Date] = [:]
     /// Off while the logs are first read, so history never replays as news.
     var reportsTransitions = false
+    /// Hears each turn that opens while transitions are reported, on the
+    /// thread that applies the logs.
+    var turnStarted: ((AgentProvider) -> Void)?
     /// A turn that ended longer ago than this is history found late, like a
     /// session an agent moved to its archive, not news.
     static let lateEnd: TimeInterval = 5 * 60
@@ -94,6 +97,9 @@ final class AgentUsageStore {
                 turns[file] = AgentLiveSession(id: file, provider: provider, started: date,
                                                lastActivity: max(date, turns[file]?.lastActivity ?? date),
                                                model: "", project: "", tokens: AgentTokens(), cost: 0)
+                if reportsTransitions, now.timeIntervalSince(date) <= Self.lateEnd {
+                    turnStarted?(provider)
+                }
             case .turnContext(let model, let project):
                 guard tracksTurns else { continue }
                 if var turn = turns[file] {
@@ -124,6 +130,11 @@ final class AgentUsageStore {
                 } else {
                     turns[file] = AgentLiveSession(id: file, provider: provider, started: moment, lastActivity: moment,
                                                    model: "", project: "", tokens: AgentTokens(), cost: 0)
+                    // Work seen before its turn's opening, as when the
+                    // opening fell outside what was read, starts it all the same.
+                    if reportsTransitions, now.timeIntervalSince(moment) <= Self.lateEnd {
+                        turnStarted?(provider)
+                    }
                 }
             case .turnSettled(let date):
                 guard tracksTurns, var turn = turns[file] ?? waiting.removeValue(forKey: file) else { continue }

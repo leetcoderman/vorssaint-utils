@@ -91,6 +91,8 @@ enum AgentUsageReadTests {
             publications.append(snapshot)
         }
         func report(_ event: AgentUsageEvent) { events.append(event) }
+        var starts: [AgentProvider] = []
+        func reportStart(_ provider: AgentProvider) { starts.append(provider) }
         func checkLimits() {}
         func schedulePublish() {}
     }
