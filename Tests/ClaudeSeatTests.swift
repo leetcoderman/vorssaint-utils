@@ -171,10 +171,10 @@ enum ClaudeSeatTests {
 
     private static func layout(_ suite: TestSuite) {
         let cards = NotchAgentSupport.orderedCards("", claudeSeats: true).filter { !$0.retired }
-        suite.expect(Array(cards.prefix(6)) == [.limits, .trend, .projects, .spend, .resets, .activity]
+        suite.expect(Array(cards.prefix(6)) == [.limits, .spend, .projects, .trend, .resets, .activity]
                         && NotchAgentSupport.orderedCards("", claudeSeats: false).prefix(3) == [.limits, .spend, .trend]
-                        && NotchAgentSupport.orderedCards("spend,trend", claudeSeats: true).prefix(2) == [.spend, .trend],
-                     "with seats a new page pairs Trend, Projects and Resets with their partners, and a saved order is kept")
+                        && NotchAgentSupport.orderedCards("trend,spend", claudeSeats: true).prefix(2) == [.trend, .spend],
+                     "with seats a new page pairs Spending with Codex, Projects with Trend and Resets with Activity, and a saved order is kept")
         let tiles = NotchAgentSupport.tiles(cards: [.limits, .trend, .spend, .projects, .resets, .activity],
                                             providers: [.claude, .codex], claudeUsesAPI: true, claudeSeats: 2)
         let rows = NotchAgentSupport.rows(tiles, width: 600)
