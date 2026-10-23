@@ -15,12 +15,24 @@ enum AppSound: String, CaseIterable, Identifiable {
     case agentFinished
     /// An agent's turn opens.
     case agentStarted
+    /// A screenshot is taken, by any capture mode.
+    case screenshotTaken
+    /// A screen recording begins capturing.
+    case recordingStarted
+    /// A screen recording ends with its take written.
+    case recordingStopped
+    /// A download in the island's folder finishes.
+    case downloadFinished
+    /// A timed event is about to start.
+    case calendarEventSoon
 
     var id: String { rawValue }
 
     var group: AppSoundGroup {
         switch self {
         case .agentFinished, .agentStarted: return .agents
+        case .screenshotTaken, .recordingStarted, .recordingStopped: return .capture
+        case .downloadFinished, .calendarEventSoon: return .island
         }
     }
 
@@ -28,6 +40,10 @@ enum AppSound: String, CaseIterable, Identifiable {
     var feature: AppFeature {
         switch self {
         case .agentFinished, .agentStarted: return .notchAgents
+        case .screenshotTaken: return .screenshot
+        case .recordingStarted, .recordingStopped: return .screenRecorder
+        case .downloadFinished: return .notchDownloads
+        case .calendarEventSoon: return .notchCalendar
         }
     }
 
@@ -35,22 +51,33 @@ enum AppSound: String, CaseIterable, Identifiable {
         switch self {
         case .agentFinished: return "checkmark.circle"
         case .agentStarted: return "play.circle"
+        case .screenshotTaken: return "camera.viewfinder"
+        case .recordingStarted: return "record.circle"
+        case .recordingStopped: return "stop.circle"
+        case .downloadFinished: return "arrow.down.circle"
+        case .calendarEventSoon: return "calendar.badge.clock"
         }
     }
 
     /// A choice from `AppSoundLibrary`: a full chime for work that is done,
-    /// a lighter one for work beginning.
+    /// a lighter one for work beginning. A capture gets a short swish, since
+    /// it may come in bursts; an event about to start, a longer call.
     var defaultChoice: String {
         switch self {
         case .agentFinished: return "tone:Modern/Chord"
         case .agentStarted: return "tone:Modern/Aurora"
+        case .screenshotTaken: return "tone:Classic/Swish"
+        case .recordingStarted: return "tone:Modern/Input"
+        case .recordingStopped: return "tone:Modern/Complete"
+        case .downloadFinished: return "tone:EncoreInfinitum/Droplet-EncoreInfinitum"
+        case .calendarEventSoon: return "tone:Modern/Circles"
         }
     }
 
     var defaultVolume: Double {
         switch self {
-        case .agentFinished: return 1.5
-        case .agentStarted: return 1
+        case .agentFinished, .calendarEventSoon: return 1.5
+        case .agentStarted, .screenshotTaken, .recordingStarted, .recordingStopped, .downloadFinished: return 1
         }
     }
 
@@ -80,6 +107,8 @@ enum AppSound: String, CaseIterable, Identifiable {
 /// A section of the Sounds page, in page order.
 enum AppSoundGroup: String, CaseIterable, Identifiable {
     case agents
+    case capture
+    case island
 
     var id: String { rawValue }
 
@@ -90,6 +119,8 @@ enum AppSoundGroup: String, CaseIterable, Identifiable {
     var noteApplies: Bool {
         switch self {
         case .agents: return !NotchAgentSupport.isEnabled()
+        case .capture: return false
+        case .island: return IslandSoundSupport.waitsOnIsland()
         }
     }
 
@@ -97,6 +128,8 @@ enum AppSoundGroup: String, CaseIterable, Identifiable {
     func strings(_ language: AppLanguage) -> SoundGroupStrings {
         switch self {
         case .agents: return FeatureStrings.agentSounds(language)
+        case .capture: return FeatureStrings.captureSounds(language)
+        case .island: return FeatureStrings.islandSounds(language)
         }
     }
 }

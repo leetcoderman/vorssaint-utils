@@ -13,6 +13,9 @@ enum AppSoundTests {
         rendering(suite)
         spacing(suite)
         starts(suite)
+        groups(suite)
+        islandPages(suite)
+        eventsSoon(suite)
     }
 
     private static func strings(_ suite: TestSuite) {
@@ -217,5 +220,66 @@ enum AppSoundTests {
         store.apply([.turnActive(now.addingTimeInterval(NotchAgentSupport.idleTurn + 1))], file: "a", provider: .codex,
                     tracksTurns: true, modified: now, now: now.addingTimeInterval(NotchAgentSupport.idleTurn + 1))
         suite.expect(heard.count == 2, "work resuming after an approval is the same turn, not a new start")
+    }
+
+    private static func groups(_ suite: TestSuite) {
+        suite.expect(AppSoundGroup.capture.sounds == [.screenshotTaken, .recordingStarted, .recordingStopped]
+                        && AppSoundGroup.island.sounds == [.downloadFinished, .calendarEventSoon],
+                     "capture and island moments sit in their own sections")
+        suite.expect(AppSound.screenshotTaken.feature == .screenshot
+                        && AppSound.recordingStopped.feature == .screenRecorder
+                        && AppSound.downloadFinished.feature == .notchDownloads
+                        && AppSound.calendarEventSoon.feature == .notchCalendar,
+                     "each moment shows only while the feature that plays it is installed")
+        suite.expect(AppSound.screenshotTaken.enabledKey == "soundScreenshotTaken"
+                        && AppSound.calendarEventSoon.repeatsKey == "soundCalendarEventSoonRepeats",
+                     "new moments name their keys like the first ones")
+        suite.expect(AppSoundGroup.capture.strings(.enUS).note == nil && !AppSoundGroup.capture.noteApplies
+                        && AppSoundGroup.island.strings(.enUS).note != nil,
+                     "only the island's section waits on another setting")
+    }
+
+    private static func islandPages(_ suite: TestSuite) {
+        let name = "vorss.tests.island-sound.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: name) else { return }
+        defer { defaults.removePersistentDomain(forName: name) }
+        suite.expect(!IslandSoundSupport.waitsOnIsland(in: defaults, isAvailable: { _ in false }),
+                     "no note while neither island page is installed")
+        suite.expect(IslandSoundSupport.waitsOnIsland(in: defaults, isAvailable: { $0 == .notchDownloads }),
+                     "an installed Downloads page that is off holds its sound back")
+        suite.expect(!IslandSoundSupport.downloadsOn(in: defaults), "the Downloads page starts off")
+    }
+
+    private static func eventsSoon(_ suite: TestSuite) {
+        let now = Date(timeIntervalSince1970: 3_000_000)
+        func event(_ id: String, start: TimeInterval, allDay: Bool = false) -> NotchCalendarEvent {
+            NotchCalendarEvent(id: id, title: id, calendar: "Work", start: now.addingTimeInterval(start),
+                               end: now.addingTimeInterval(start + 3600), allDay: allDay, location: "")
+        }
+        let lead = IslandSoundSupport.calendarLeadTime
+        let soon = event("soon", start: lead - 30)
+        let later = event("later", start: lead + 600)
+        let begun = event("begun", start: -60)
+        let allDay = event("day", start: 60, allDay: true)
+        let events = [soon, later, begun, allDay]
+
+        let due = IslandSoundSupport.dueEvents(events, now: now, heard: [:])
+        suite.expect(due == [soon], "only a timed event inside the lead time sounds")
+        let heard = IslandSoundSupport.heard([:], adding: due, now: now)
+        suite.expect(IslandSoundSupport.dueEvents(events, now: now.addingTimeInterval(20), heard: heard).isEmpty,
+                     "an event sounds once, however often the calendar is read again")
+        suite.expect(IslandSoundSupport.dueEvents([event("soon", start: lead - 10)], now: now, heard: heard).isEmpty,
+                     "the same event read again is still the one already heard")
+        suite.expect(IslandSoundSupport.dueEvents([begun], now: now, heard: [:]).isEmpty,
+                     "an event already under way at launch never sounds")
+        suite.expect(IslandSoundSupport.dueEvents([allDay], now: now.addingTimeInterval(-lead), heard: [:]).isEmpty,
+                     "an all-day event never sounds")
+        suite.expect(IslandSoundSupport.nextSound(events, now: now) == later.start.addingTimeInterval(-lead),
+                     "the reader wakes when the next event's sound falls due")
+        suite.expect(IslandSoundSupport.dueEvents(events, now: later.start.addingTimeInterval(-lead), heard: heard)
+                        == [later],
+                     "a later event sounds when its moment comes")
+        suite.expect(IslandSoundSupport.heard(heard, adding: [], now: soon.start).isEmpty,
+                     "an event is forgotten once it begins")
     }
 }
