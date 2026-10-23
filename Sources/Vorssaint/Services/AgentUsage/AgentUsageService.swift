@@ -352,6 +352,7 @@ final class AgentUsageService: ObservableObject {
             readClaudePlan()
             readClaudeApp(now: now)
             store.reportsTransitions = true
+            store.turnStarted = { [weak self] (provider: AgentProvider) in self?.reportStart(provider) }
             previousLimits = store.limits
             // A budget already passed before launch is history, not news.
             let today = Calendar.autoupdatingCurrent.startOfDay(for: now)
@@ -730,13 +731,24 @@ final class AgentUsageService: ObservableObject {
 
     // MARK: Alerts
 
+    /// A turn opening is only ever heard: the working strip already shows it.
+    private func reportStart(_ provider: AgentProvider) {
+        let session = readerSession
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.running, self.session == session, self.providers.contains(provider) else { return }
+            AppSoundService.shared.play(.agentStarted)
+        }
+    }
+
     /// Filters by the person's choices on the main thread, where they live.
+    /// A finished turn's sound has choices of its own, apart from the notice.
     private func report(_ event: AgentUsageEvent) {
         let session = readerSession
         DispatchQueue.main.async { [weak self] in
             guard let self, self.running, self.session == session else { return }
             switch event {
             case .finished(let provider, let duration, _, _, _):
+                if self.providers.contains(provider) { AppSoundService.shared.play(.agentFinished) }
                 guard self.providers.contains(provider), let minimum = NotchAgentSupport.finishMinimum(),
                       duration >= minimum else { return }
             case .limitWarning(let provider, _), .limitReset(let provider, _):

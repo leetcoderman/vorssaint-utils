@@ -905,6 +905,14 @@ enum DefaultsKey {
     static let notchAgentsLimitThreshold = "notchAgentsLimitThreshold"
     static let notchAgentsDailyBudget = "notchAgentsDailyBudget"
     static let notchAgentsPriceUpdates = "notchAgentsPriceUpdates"
+    /// The Sounds page: one switch for every sound, then each moment's own.
+    static let soundsEnabled = "soundsEnabled"
+    static let soundAgentFinished = "soundAgentFinished"
+    static let soundAgentFinishedName = "soundAgentFinishedName"
+    static let soundAgentFinishedVolume = "soundAgentFinishedVolume"
+    static let soundAgentStarted = "soundAgentStarted"
+    static let soundAgentStartedName = "soundAgentStartedName"
+    static let soundAgentStartedVolume = "soundAgentStartedVolume"
     /// Who pays for Claude Code's requests: `AgentClaudeBilling`.
     static let notchAgentsClaudeBilling = "notchAgentsClaudeBilling"
     /// The API key's prepaid balance in US dollars as entered, when, and what
@@ -1525,6 +1533,13 @@ enum Defaults {
         DefaultsKey.notchAgentsLimitThreshold: NotchAgentSupport.defaultLimitThreshold,
         DefaultsKey.notchAgentsDailyBudget: 0.0,
         DefaultsKey.notchAgentsPriceUpdates: true,
+        DefaultsKey.soundsEnabled: true,
+        DefaultsKey.soundAgentFinished: false,
+        DefaultsKey.soundAgentFinishedName: AppSound.agentFinished.defaultName,
+        DefaultsKey.soundAgentFinishedVolume: AppSound.agentFinished.defaultVolume,
+        DefaultsKey.soundAgentStarted: false,
+        DefaultsKey.soundAgentStartedName: AppSound.agentStarted.defaultName,
+        DefaultsKey.soundAgentStartedVolume: AppSound.agentStarted.defaultVolume,
         DefaultsKey.notchAgentsClaudeBilling: AgentClaudeBilling.automatic.rawValue,
         DefaultsKey.notchAgentsClaudeCredits: 0.0,
         DefaultsKey.notchAgentsClaudeCreditsSince: 0.0,
