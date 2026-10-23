@@ -2412,6 +2412,14 @@ enum NotchTests {
         suite.expect(NotchSupport.closesOnPointerExit(expanded: true, peeking: false, openedByHover: false, pointerReached: true)
                && !NotchSupport.closesOnPointerExit(expanded: false, peeking: false, openedByHover: false, pointerReached: true),
                "a direct opening the pointer reached closes as it leaves when the pointer drives the island")
+        let edgeScreen = CGRect(x: 0, y: 0, width: 1800, height: 1169)
+        suite.expect(NotchSupport.onScreenTopRow(CGPoint(x: 900, y: 1169), of: edgeScreen)
+               && NotchSupport.onScreenTopRow(CGPoint(x: 900, y: 1168.5), of: edgeScreen),
+               "a pointer thrown to the top edge is on the row the menu bar keeps from the island")
+        suite.expect(!NotchSupport.onScreenTopRow(CGPoint(x: 900, y: 1168), of: edgeScreen)
+               && !NotchSupport.onScreenTopRow(CGPoint(x: 900, y: 1169.5), of: edgeScreen)
+               && !NotchSupport.onScreenTopRow(CGPoint(x: 1900, y: 1169), of: edgeScreen),
+               "the rows below, a display above and another display's top row are not the island's top row")
         var hover = NotchHoverState()
         hover.close(pointerInside: true)
         for _ in 0..<4 { hover.update(pointerInside: true) }
