@@ -1226,8 +1226,10 @@ private struct NotchAgentSpendCard: View {
                 NotchAgentCardHeader(title: text.spendCard, symbol: NotchAgentCard.spend.symbol) {
                     multiple(snapshot.usage(.month))
                 }
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(NotchAgentSupport.costText(lifetime.total))
+                // The whole amount with its caption on the same line, never
+                // shortened and never marked as a minimum.
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(AgentFormat.exactCost(lifetime.total.cost))
                         .agentAmount()
                         .font(.system(size: 22, weight: .medium, design: .rounded))
                         .monospacedDigit()
@@ -1235,6 +1237,7 @@ private struct NotchAgentSpendCard: View {
                         .contentTransition(.numericText())
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
+                        .layoutPriority(1)
                     Text(places.allTime)
                         .font(.system(size: 9.5))
                         .foregroundStyle(.secondary)
@@ -1260,7 +1263,7 @@ private struct NotchAgentSpendCard: View {
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
-                    Text(NotchAgentSupport.costText(totals))
+                    Text(AgentFormat.exactCost(totals.cost))
                         .agentAmount()
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .monospacedDigit()
@@ -1311,7 +1314,7 @@ private struct NotchAgentSpendCard: View {
                         } else {
                             NotchAgentMeter(value: peak > 0 ? share.totals.cost / peak : 0,
                                             tint: AgentProvider.claude.tint, height: 3)
-                            Text(NotchAgentSupport.costText(share.totals))
+                            Text(AgentFormat.exactCost(share.totals.cost))
                                 .agentAmount()
                                 .font(.system(size: 10, weight: .medium))
                                 .monospacedDigit()
