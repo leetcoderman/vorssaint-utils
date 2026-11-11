@@ -38,7 +38,7 @@ final class UpdateService: ObservableObject {
     private init() {}
 
     var autoCheckEnabled: Bool {
-        get { UserDefaults.standard.object(forKey: DefaultsKey.autoCheckUpdates) as? Bool ?? true }
+        get { UserDefaults.standard.object(forKey: DefaultsKey.autoCheckUpdates) as? Bool ?? false }
         set {
             UserDefaults.standard.set(newValue, forKey: DefaultsKey.autoCheckUpdates)
             configureAutomaticChecks()
