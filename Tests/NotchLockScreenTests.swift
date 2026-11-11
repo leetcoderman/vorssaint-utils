@@ -281,6 +281,11 @@ enum NotchLockScreenTests {
                      && odd.order(in: .mac) == [.cpu, .gpu, .memory, .network, .accessories, .battery]
                      && odd.order.count == NotchLockScreenWidget.allCases.count,
                      "unknown and repeated entries drop out, and a widget the order misses joins the end of its place")
+        let retired = Widgets(order: "cpu,gpu,memory,network,accessories,battery,calendar,nowPlaying,claude,codex,lifetime,agents,streak",
+                              hidden: "codex,streak")
+        suite.expect(retired.order == Widgets.initial.order && retired.hidden == [.streak]
+                     && retired.encodedOrder == Widgets.initial.encodedOrder && retired.encodedHidden == "streak",
+                     "a widget that no longer exists drops out of a saved order and hidden set, and the rest stays")
         suite.expect(odd.hidden == [.battery] && odd.shown(in: .mac).last == .accessories,
                      "a removed widget in the hidden set is ignored, and a hidden one leaves its place's list")
 
