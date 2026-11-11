@@ -892,6 +892,14 @@ enum AgentFormat {
         return "$" + value.formatted(.number.precision(.fractionLength(digits)).grouping(.automatic).locale(locale))
     }
 
+    /// The whole amount, never shortened to thousands: "$11,043", "$77.01".
+    /// The Spending card reads this way, as PC Essentials' does.
+    static func exactCost(_ value: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        guard value.isFinite else { return "$0" }
+        let digits = abs(value) >= 100 ? 0 : 2
+        return "$" + value.formatted(.number.precision(.fractionLength(digits)).grouping(.automatic).locale(locale))
+    }
+
     static func tokens(_ value: Int, locale: Locale = .autoupdatingCurrent) -> String {
         let magnitude = Double(max(0, value))
         switch magnitude {

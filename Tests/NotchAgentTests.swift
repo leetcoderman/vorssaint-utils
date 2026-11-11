@@ -1738,6 +1738,10 @@ enum NotchAgentTests {
                         && AgentFormat.tokens(1_234_567, locale: english) == "1.2M"
                         && AgentFormat.tokens(4_280, locale: portuguese) == "4,2K",
                      "token counts shorten without rounding up, with the region's decimal mark")
+        suite.expect(AgentFormat.exactCost(11_043.4, locale: english) == "$11,043"
+                        && AgentFormat.exactCost(77.011, locale: english) == "$77.01"
+                        && AgentFormat.exactCost(154, locale: english) == "$154",
+                     "the Spending card's amounts are whole, never shortened to thousands")
         suite.expect(AgentFormat.cost(12.4, locale: english) == "$12.40" && AgentFormat.cost(1234, locale: english) == "$1,234"
                         && AgentFormat.cost(12_345, locale: english) == "$12K" && AgentFormat.cost(0.42, locale: portuguese) == "$0,42",
                      "costs keep cents while they matter")
