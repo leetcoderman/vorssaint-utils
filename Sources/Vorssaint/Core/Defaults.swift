@@ -1286,7 +1286,7 @@ enum Defaults {
         DefaultsKey.middleClickTapFingers: 0,
         DefaultsKey.previewSize: "normal",
         DefaultsKey.switcherPreviewSize: "normal",
-        DefaultsKey.autoCheckUpdates: true,
+        DefaultsKey.autoCheckUpdates: false,
         DefaultsKey.includeBetaUpdates: false,
         DefaultsKey.releaseNotesOnUpdate: true,
         DefaultsKey.showReleaseNotesBeforeUpdate: true,

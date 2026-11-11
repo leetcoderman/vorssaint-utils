@@ -1984,8 +1984,8 @@ enum SwitcherModelFeatureTests {
                < DockPreviewSupport.openDelay(
                    milliseconds: DockPreviewSupport.openDelayMillisecondsRange.lowerBound),
                "a switch, reading its window list inline, still lands before the shortest fresh open")
-        suite.expect(registeredDefaults[DefaultsKey.autoCheckUpdates] as? Bool == true,
-               "update checks are on for clean installs")
+        suite.expect(registeredDefaults[DefaultsKey.autoCheckUpdates] as? Bool == false,
+               "update checks are off for clean installs in this fork")
         suite.expect(registeredDefaults[DefaultsKey.updateShowcaseIntroVersion] as? String == "",
                "update showcase intro starts unseen")
         suite.expect(registeredDefaults[DefaultsKey.updateShowcaseMediaOverride] as? String == "",
