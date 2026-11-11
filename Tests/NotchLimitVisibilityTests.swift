@@ -155,6 +155,12 @@ enum NotchLimitVisibilityTests {
         NotchLimitVisibility.set(.profile(two), in: .island, shown: false, defaults: store)
         suite.expect(NotchAgentSupport.workingLimits(snapshot, provider: .claude, defaults: store) == nil,
                      "a session under a seat the island leaves out shows no ring, so its time shows")
+        suite.expect(NotchAgentSupport.workingLimits(snapshot, provider: .claude, place: .lockScreen, defaults: store)?
+                        .windows.first?.usedPercent == 96,
+                     "the lock screen's line follows its own choice, not the island's")
+        NotchLimitVisibility.set(.profile(two), in: .lockScreen, shown: false, defaults: store)
+        suite.expect(NotchAgentSupport.workingLimits(snapshot, provider: .claude, place: .lockScreen, defaults: store) == nil,
+                     "a session under a seat the lock screen leaves out shows its time on the line")
         let rest = NotchAgentSupport.restingSequence(NotchLimitVisibility.applying(snapshot, in: .island, defaults: store),
                                                      layout: .cycle, providers: AgentProvider.allCases, hidden: [],
                                                      focus: .session, now: now)

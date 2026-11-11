@@ -479,7 +479,7 @@ enum NotchAgentSupport {
     /// the person chose, or the time elapsed while that one is unknown.
     static func stripReading(_ snapshot: AgentUsageSnapshot, readout: NotchAgentReadout,
                              display: NotchAgentLimitDisplay, focus: NotchAgentLimitFocus = .mostUsed,
-                             now: Date) -> String {
+                             place: NotchLimitPlace = .island, now: Date) -> String {
         let live = snapshot.live
         func elapsed() -> String { AgentFormat.clock(now.timeIntervalSince(live.map(\.started).min() ?? now)) }
         switch readout {
@@ -493,7 +493,7 @@ enum NotchAgentSupport {
             return AgentFormat.cost(live.reduce(0) { $0 + $1.cost })
         case .limit:
             guard let provider = AgentProvider.allCases.first(where: { provider in live.contains { $0.provider == provider } }),
-                  let window = focusedLimit(workingLimits(snapshot, provider: provider), focus: focus, now: now)
+                  let window = focusedLimit(workingLimits(snapshot, provider: provider, place: place), focus: focus, now: now)
             else { return elapsed() }
             return AgentFormat.percent(display == .used ? window.usedFraction : window.remainingFraction)
         }
@@ -501,14 +501,14 @@ enum NotchAgentSupport {
 
     /// The limits a working agent's ring and reading show: for a Claude-app
     /// session with seats, the seat it runs under; otherwise the account's.
-    /// None for an account the island leaves out, which shows the time.
+    /// None for an account `place` leaves out, which shows the time.
     static func workingLimits(_ snapshot: AgentUsageSnapshot, provider: AgentProvider,
-                              defaults: UserDefaults = .standard) -> AgentLimits? {
+                              place: NotchLimitPlace = .island, defaults: UserDefaults = .standard) -> AgentLimits? {
         guard provider == .claude, let session = snapshot.live.first(where: { $0.provider == .claude }),
               let seat = snapshot.claudeSeat(for: session) else {
-            return NotchLimitVisibility.applying(snapshot, in: .island, defaults: defaults).limits[provider]
+            return NotchLimitVisibility.applying(snapshot, in: place, defaults: defaults).limits[provider]
         }
-        return NotchLimitVisibility.shows(.profile(seat.id), in: .island, defaults: defaults) ? seat.limits : nil
+        return NotchLimitVisibility.shows(.profile(seat.id), in: place, defaults: defaults) ? seat.limits : nil
     }
 
     /// Settings must illustrate the selected reading even before any agent
