@@ -10,8 +10,8 @@ private extension AgentProvider {
 }
 
 /// The AI rail's read-only cards: Claude's limits and what its API key
-/// spent, and the lifetime spending, as many as are shown and where the
-/// layout puts them. They take no input.
+/// spent, and the island's Spending card, as many as are shown and where
+/// the layout puts them. They take no input.
 struct NotchLockScreenAICards: View {
     let size: CGSize
     /// Each card's frame from the panel's top left.
@@ -59,8 +59,12 @@ struct NotchLockScreenAICards: View {
                                                         wide: true, showsSessions: false)
                         case .claude:
                             NotchAgentLimitsCard(snapshot: snapshot, now: context.date, display: shown, text: text)
+                        case .lifetime where privacy.hidesAmounts:
+                            NotchLockScreenLifetimeTokens(snapshot: snapshot)
                         case .lifetime:
-                            NotchLockScreenLifetimeCard(snapshot: snapshot, hidesAmounts: privacy.hidesAmounts)
+                            // The island's own card: the exact total, the
+                            // periods and each model's dollars.
+                            NotchAgentSpendCard(snapshot: snapshot, text: text, claudeUsesAPI: claudeUsesAPI, wide: true)
                         default:
                             EmptyView()
                         }
@@ -81,11 +85,10 @@ struct NotchLockScreenAICards: View {
     }
 }
 
-/// Claude's work at API prices since the ledger began. With amounts hidden
-/// it counts tokens instead.
-private struct NotchLockScreenLifetimeCard: View {
+/// The Lifetime widget with amounts hidden: Claude's tokens since the
+/// ledger began, in place of the Spending card's dollars.
+private struct NotchLockScreenLifetimeTokens: View {
     let snapshot: AgentUsageSnapshot
-    let hidesAmounts: Bool
     @ObservedObject private var l10n = L10n.shared
     @Environment(\.locale) private var locale
 
@@ -93,21 +96,16 @@ private struct NotchLockScreenLifetimeCard: View {
 
     var body: some View {
         let text = FeatureStrings.notchLockScreenWidgets(l10n.language)
-        let total = snapshot.lifetime.total
-        let byCost = !hidesAmounts
-        let priced = total.unpriced == 0
         return VStack(alignment: .leading, spacing: 6) {
             NotchLockScreenSection(title: text.lifetime, symbol: "dollarsign.circle")
             VStack(alignment: .leading, spacing: 0) {
-                Text((byCost && !priced ? "≥ " : "")
-                     + (byCost ? AgentFormat.cost(total.cost, locale: locale)
-                        : AgentFormat.tokens(total.tokens.total, locale: locale)))
+                Text(AgentFormat.tokens(snapshot.lifetime.total.tokens.total, locale: locale))
                     .font(Tile.rounded(32))
                     .tracking(-0.8)
                     .monospacedDigit()
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
-                Text(byCost ? FeatureStrings.notchAgentPlaces(l10n.language).allTime : text.tokensAllTime)
+                Text(text.tokensAllTime)
                     .font(.system(size: 10))
                     .foregroundStyle(Tile.dim)
                     .lineLimit(1)
@@ -134,7 +132,7 @@ struct NotchLockScreenAgentsAtWork: View {
     /// The card's padding and heading above the list.
     private static let chrome: CGFloat = 14 + 10 + 14 + 6
 
-    /// The terminal's tile, grey beside the agents' app tiles.
+    /// The terminal's tile, grey beside the Claude app's.
     private static let terminalFill = Color(red: 0x3A / 255, green: 0x3A / 255, blue: 0x3C / 255)
 
     var body: some View {
@@ -234,7 +232,7 @@ struct NotchLockScreenAgentsAtWork: View {
         startPoint: .top, endPoint: .bottom)
 }
 
-/// Days in a row with any agent's use, the best run, and the last thirty
+/// Days in a row with any use of Claude, the best run, and the last thirty
 /// days as bars. Pointing at a bar says what that day held.
 struct NotchLockScreenStreak: View {
     let size: CGSize
@@ -346,7 +344,11 @@ struct NotchLockScreenStreak: View {
         var lines: [(String, String)] = []
         if totals.requests > 0 {
             if !privacy.hidesAmounts {
-                lines.append((text.spent, (totals.unpriced > 0 ? "≥ " : "") + AgentFormat.cost(totals.cost, locale: locale)))
+                // As the Spending card reads: the whole amount, never marked
+                // as a minimum, and "no price" for a day nothing could price.
+                lines.append((text.spent, NotchAgentSupport.isUnpriced(totals)
+                              ? FeatureStrings.agentSeatMenu(l10n.language).noPrice
+                              : AgentFormat.exactCost(totals.cost, locale: locale)))
             }
             lines.append((text.tokens, String(format: text.inOutFormat,
                                               AgentFormat.tokens(totals.tokens.prompt, locale: locale),

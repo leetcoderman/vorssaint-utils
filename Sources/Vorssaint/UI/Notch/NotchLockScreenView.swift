@@ -378,7 +378,8 @@ struct NotchLockScreenActivities: View {
                                                             NotchAgentReadout(rawValue: readout) ?? .elapsed,
                                                             privacy: model.gates.privacy),
                                                          display: NotchAgentLimitDisplay(rawValue: display) ?? .remaining,
-                                                         focus: NotchAgentLimitFocus(rawValue: focus) ?? .mostUsed, now: date)
+                                                         focus: NotchAgentLimitFocus(rawValue: focus) ?? .mostUsed,
+                                                         place: .lockScreen, now: date)
             // The agents and their reading only: a project's name stays off
             // a screen anyone can walk up to.
             HStack(spacing: 7) {

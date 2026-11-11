@@ -217,6 +217,8 @@ struct NotchAgentLimitsCard: View {
     var showsSessions = false
     @ObservedObject private var l10n = L10n.shared
     @Environment(\.locale) private var locale
+    /// The lock screen takes no clicks, so it leaves out the way to Settings.
+    @Environment(\.notchAgentsLockScreen) private var lockScreen
 
     private let provider = AgentProvider.claude
     private var limits: AgentLimits? { snapshot.limits[provider] }
@@ -314,10 +316,10 @@ struct NotchAgentLimitsCard: View {
                                 tint: provider.tint, height: 4, dimmed: true)
             }
             .help(text.estimated)
-            setUpLimits
+            if lockScreen == nil { setUpLimits }
         } else {
             Text(text.noSession).font(.system(size: 10.5)).foregroundStyle(.secondary)
-            setUpLimits
+            if lockScreen == nil { setUpLimits }
         }
     }
 
@@ -719,6 +721,8 @@ private struct NotchAgentClaudeAPIFigures: View {
     @AppStorage(DefaultsKey.notchAgentsClaudeCredits) private var balance = 0.0
     @AppStorage(DefaultsKey.notchAgentsClaudeCreditsSince) private var since = 0.0
     @Environment(\.locale) private var locale
+    /// The lock screen takes no clicks, so it leaves out the way to Settings.
+    @Environment(\.notchAgentsLockScreen) private var lockScreen
 
     private let provider = AgentProvider.claude
     private var billing: ClaudeBillingStrings { FeatureStrings.claudeBilling(l10n.language) }
@@ -792,7 +796,7 @@ private struct NotchAgentClaudeAPIFigures: View {
             }
             .help(billing.creditsLeft(AgentFormat.cost(max(0, left)),
                                       since: stored.since.formatted(.relative(presentation: .named).locale(locale))))
-        } else {
+        } else if lockScreen == nil {
             Button {
                 NotchService.shared.openSettings(showing: .agents)
             } label: {
@@ -833,8 +837,12 @@ struct NotchAgentClaudeSeatsCard: View {
     var manages = false
     @ObservedObject private var l10n = L10n.shared
     @AppStorage(DefaultsKey.notchAgentsClaudeOrgLabel) private var organization = ""
+    @Environment(\.notchAgentsLockScreen) private var lockScreen
 
     private let provider = AgentProvider.claude
+    /// A lock screen that hides project names keeps back who the seats are
+    /// too: the organization's label and each seat's email.
+    private var hidesNames: Bool { lockScreen?.hidesProjects == true }
     private var seatText: ClaudeSeatStrings { FeatureStrings.claudeSeats(l10n.language) }
     private var menuText: AgentSeatMenuStrings { FeatureStrings.agentSeatMenu(l10n.language) }
 
@@ -860,7 +868,7 @@ struct NotchAgentClaudeSeatsCard: View {
                 .frame(width: 17, height: 17)
                 .accessibilityLabel(seatText.subscriptionTitle)
             let label = organization.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !label.isEmpty { NotchAgentChip(text: label, tint: NotchTopBarPalette.yellow) }
+            if !label.isEmpty && !hidesNames { NotchAgentChip(text: label, tint: NotchTopBarPalette.yellow) }
             if let plan = (seats.first(where: \.active) ?? snapshot.activeClaudeSeat)?.plan {
                 NotchAgentChip(text: plan, tint: provider.tint)
             }
@@ -944,7 +952,9 @@ struct NotchAgentClaudeSeatsCard: View {
                                 .frame(maxHeight: .infinity)
                         }
                         if slot < row.count {
-                            let column = NotchAgentClaudeSeatColumn(seat: row[slot], now: now, display: display, text: text)
+                            let column = NotchAgentClaudeSeatColumn(
+                                seat: row[slot], now: now, display: display, text: text,
+                                alias: hidesNames ? "\(provider.displayName) \(index * max(1, columns) + slot + 1)" : nil)
                                 .frame(maxWidth: .infinity, alignment: .topLeading)
                             if manages && seats.count > 1 {
                                 // The whole column answers, not only its text.
@@ -996,6 +1006,8 @@ private struct NotchAgentClaudeSeatColumn: View {
     let now: Date
     let display: NotchAgentLimitDisplay
     let text: NotchAgentStrings
+    /// What the seat is called where its email is kept back: "Claude 2".
+    var alias: String? = nil
     @ObservedObject private var l10n = L10n.shared
     @Environment(\.locale) private var locale
     /// The lock screen's widget has no room for a note under the meter.
@@ -1028,12 +1040,12 @@ private struct NotchAgentClaudeSeatColumn: View {
                         .help(seats.activeHelp)
                         .accessibilityLabel(seats.activeHelp)
                 }
-                Text(seat.email.isEmpty ? seats.notSignedIn : seat.email)
+                Text(alias ?? (seat.email.isEmpty ? seats.notSignedIn : seat.email))
                     .font(.system(size: 10.5, weight: seat.active ? .semibold : .medium))
                     .foregroundStyle(seat.active ? AnyShapeStyle(.white.opacity(0.9)) : AnyShapeStyle(.secondary))
                     .lineLimit(1)
                     .truncationMode(.middle)
-                    .help(seat.email)
+                    .help(alias ?? seat.email)
             }
             if seat.failure == .needsSignIn || seat.account == nil {
                 signIn
@@ -1106,12 +1118,23 @@ private struct NotchAgentClaudeSeatColumn: View {
     }
 
     /// The command that signs the seat in again, to copy or run in Terminal.
-    private var signIn: some View {
+    /// The lock screen says only that it is needed: the command names the
+    /// profile's folder, and nothing there can be clicked.
+    @ViewBuilder private var signIn: some View {
+        let needed = Label(seats.signInNeeded, systemImage: "exclamationmark.triangle.fill")
+            .labelStyle(NotchAgentInlineLabel())
+            .font(.system(size: 10, weight: .semibold))
+            .foregroundStyle(.orange)
+        if lockScreen != nil {
+            needed
+        } else {
+            signInCommand(needed)
+        }
+    }
+
+    private func signInCommand(_ needed: some View) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(seats.signInNeeded, systemImage: "exclamationmark.triangle.fill")
-                .labelStyle(NotchAgentInlineLabel())
-                .font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(.orange)
+            needed
             Text(seat.signInCommand)
                 .font(.system(size: 9.5, design: .monospaced))
                 .foregroundStyle(.white.opacity(0.85))
@@ -1211,11 +1234,14 @@ private struct NotchAgentClaudeAPIPill: View {
 /// Claude's work at API prices since the ledger began, whatever period the
 /// island's top row shows, colored by how much it is, with the models that
 /// did most of it under it. The plan multiple stays on thirty days.
-private struct NotchAgentSpendCard: View {
+struct NotchAgentSpendCard: View {
     let snapshot: AgentUsageSnapshot
     let text: NotchAgentStrings
     /// Claude Code's spending was paid from API credits, not the plan.
     var claudeUsesAPI = false
+    /// The lock screen's tile is wider than it is tall: the total and the
+    /// periods on the left, the models on the right.
+    var wide = false
     @ObservedObject private var l10n = L10n.shared
 
     var body: some View {
@@ -1226,30 +1252,48 @@ private struct NotchAgentSpendCard: View {
                 NotchAgentCardHeader(title: text.spendCard, symbol: NotchAgentCard.spend.symbol) {
                     multiple(snapshot.usage(.month))
                 }
-                // The whole amount with its caption on the same line, never
-                // shortened and never marked as a minimum.
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(AgentFormat.exactCost(lifetime.total.cost))
-                        .agentAmount()
-                        .font(.system(size: 22, weight: .medium, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(agentSpendTint(lifetime.total.cost))
-                        .contentTransition(.numericText())
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .layoutPriority(1)
-                    Text(places.allTime)
-                        .font(.system(size: 9.5))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                if wide {
+                    HStack(alignment: .top, spacing: 14) {
+                        VStack(alignment: .leading, spacing: 5) {
+                            total(lifetime, places: places)
+                            periods
+                        }
+                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                        Rectangle().fill(.white.opacity(0.1)).frame(width: 1).frame(maxHeight: .infinity)
+                        models(lifetime)
+                            .frame(maxWidth: .infinity, alignment: .topLeading)
+                    }
+                } else {
+                    total(lifetime, places: places)
+                    periods
+                    models(lifetime)
+                    Spacer(minLength: 0)
                 }
-                .help(lifetime.fullyPriced ? text.valueNote : text.unpriced)
-                periods
-                models(lifetime)
-                Spacer(minLength: 0)
             }
         }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The whole amount with its caption on the same line, never shortened
+    /// and never marked as a minimum.
+    private func total(_ lifetime: AgentPeriodUsage, places: NotchAgentPlaceStrings) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 4) {
+            Text(AgentFormat.exactCost(lifetime.total.cost))
+                .agentAmount()
+                .font(.system(size: 22, weight: .medium, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(agentSpendTint(lifetime.total.cost))
+                .contentTransition(.numericText())
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .layoutPriority(1)
+            Text(places.allTime)
+                .font(.system(size: 9.5))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .help(lifetime.fullyPriced ? text.valueNote : text.unpriced)
     }
 
     /// Today, the last seven days and the last thirty, side by side.
