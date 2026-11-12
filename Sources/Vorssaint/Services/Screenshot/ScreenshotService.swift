@@ -342,7 +342,8 @@ final class ScreenshotService: ObservableObject {
                 AppSoundService.shared.play(.screenshotTaken)
                 QuickToolHUD.show(icon: "link", message: strings.linkCopied)
             case .refused(let reason):
-                let message = reason.map { "\(strings.failed) \($0)" } ?? strings.failed
+                // The HUD shows two lines: ImgBB's reason gets the second one.
+                let message = reason.map { "\(strings.failed)\n\($0)" } ?? strings.failed
                 self.uploadFailed(image, scale: scale, message: message)
             }
         }
