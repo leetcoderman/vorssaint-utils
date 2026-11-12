@@ -188,6 +188,8 @@ enum SettingsBackupSupport {
         DefaultsKey.shotLastFolder,
         // Where the last selection sat only means something on this Mac's displays.
         DefaultsKey.shotLastSelection,
+        // A credential, not a preference: it is never written to a backup file.
+        DefaultsKey.shotUploadKey,
         DefaultsKey.musicBlockReplacementPath,
         // A local watermark file is authority on this Mac, not portable data.
         DefaultsKey.mediaImageWatermarkLogoPath,
