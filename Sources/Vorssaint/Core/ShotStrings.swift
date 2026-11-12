@@ -58,7 +58,7 @@ extension FeatureStrings {
 extension ShotStrings {
     static let enUS = ShotStrings(
         summary: "Select an area, draw on it, then copy, save or print it",
-        intro: "The screen freezes, you drag to select an area, then draw on it and copy, save or print it. ⌘A or a double click selects the whole display, Esc cancels. Screenshots never leave this Mac.",
+        intro: "The screen freezes, you drag to select an area, then draw on it and copy, save or print it. ⌘A or a double click selects the whole display, Esc cancels. Screenshots stay on this Mac unless you upload them.",
         fullScreenCaption: "Saves every display straight to the default folder, without selecting an area.",
         systemTitle: "macOS screenshot shortcuts",
         systemOn: "macOS still answers its own screenshot shortcuts (⇧⌘3, ⇧⌘4, ⇧⌘5). To leave screenshots to Vorssaint, turn them off in System Settings › Keyboard › Keyboard Shortcuts › Screenshots. Vorssaint doesn’t change them for you.",
@@ -86,7 +86,7 @@ extension ShotStrings {
 
     static let ptBR = ShotStrings(
         summary: "Selecione uma área, desenhe nela e depois copie, salve ou imprima",
-        intro: "A tela congela, você arrasta para selecionar uma área, desenha nela e depois copia, salva ou imprime. ⌘A ou um clique duplo seleciona a tela inteira, Esc cancela. As capturas nunca saem deste Mac.",
+        intro: "A tela congela, você arrasta para selecionar uma área, desenha nela e depois copia, salva ou imprime. ⌘A ou um clique duplo seleciona a tela inteira, Esc cancela. As capturas ficam neste Mac, a menos que você as envie.",
         fullScreenCaption: "Salva todas as telas direto na pasta padrão, sem selecionar uma área.",
         systemTitle: "Atalhos de captura do macOS",
         systemOn: "O macOS ainda responde aos próprios atalhos de captura (⇧⌘3, ⇧⌘4, ⇧⌘5). Para deixar as capturas com o Vorssaint, desative-os em Ajustes do Sistema › Teclado › Atalhos de Teclado › Capturas de Tela. O Vorssaint não os altera por você.",
@@ -114,7 +114,7 @@ extension ShotStrings {
 
     static let tr = ShotStrings(
         summary: "Bir alan seçin, üzerine çizin, sonra kopyalayın, kaydedin veya yazdırın",
-        intro: "Ekran donar, bir alan seçmek için sürüklersiniz, üzerine çizer ve kopyalar, kaydeder veya yazdırırsınız. ⌘A veya çift tıklama tüm ekranı seçer, Esc iptal eder. Ekran görüntüleri bu Mac’ten asla çıkmaz.",
+        intro: "Ekran donar, bir alan seçmek için sürüklersiniz, üzerine çizer ve kopyalar, kaydeder veya yazdırırsınız. ⌘A veya çift tıklama tüm ekranı seçer, Esc iptal eder. Ekran görüntüleri, siz yüklemediğiniz sürece bu Mac’te kalır.",
         fullScreenCaption: "Alan seçmeden tüm ekranları doğrudan varsayılan klasöre kaydeder.",
         systemTitle: "macOS ekran görüntüsü kısayolları",
         systemOn: "macOS kendi ekran görüntüsü kısayollarına hâlâ yanıt veriyor (⇧⌘3, ⇧⌘4, ⇧⌘5). Ekran görüntülerini Vorssaint’e bırakmak için bunları Sistem Ayarları › Klavye › Klavye Kestirmeleri › Ekran Resimleri bölümünden kapatın. Vorssaint bunları sizin yerinize değiştirmez.",
@@ -142,7 +142,7 @@ extension ShotStrings {
 
     static let ru = ShotStrings(
         summary: "Выделите область, нарисуйте на ней, затем скопируйте, сохраните или распечатайте",
-        intro: "Экран замирает, вы выделяете область, рисуете на ней, а затем копируете, сохраняете или печатаете. ⌘A или двойной щелчок выбирает весь экран, Esc отменяет. Снимки никогда не покидают этот Mac.",
+        intro: "Экран замирает, вы выделяете область, рисуете на ней, а затем копируете, сохраняете или печатаете. ⌘A или двойной щелчок выбирает весь экран, Esc отменяет. Снимки остаются на этом Mac, пока вы сами их не загрузите.",
         fullScreenCaption: "Сохраняет все экраны сразу в папку по умолчанию, без выбора области.",
         systemTitle: "Сочетания клавиш macOS для снимков экрана",
         systemOn: "macOS по-прежнему отвечает на собственные сочетания для снимков экрана (⇧⌘3, ⇧⌘4, ⇧⌘5). Чтобы оставить снимки Vorssaint, отключите их в «Системные настройки» › «Клавиатура» › «Сочетания клавиш» › «Снимки экрана». Vorssaint не меняет их за вас.",
@@ -170,7 +170,7 @@ extension ShotStrings {
 
     static let es = ShotStrings(
         summary: "Selecciona un área, dibuja sobre ella y luego cópiala, guárdala o imprímela",
-        intro: "La pantalla se congela, arrastras para seleccionar un área, dibujas sobre ella y luego la copias, guardas o imprimes. ⌘A o un doble clic selecciona toda la pantalla, Esc cancela. Las capturas nunca salen de este Mac.",
+        intro: "La pantalla se congela, arrastras para seleccionar un área, dibujas sobre ella y luego la copias, guardas o imprimes. ⌘A o un doble clic selecciona toda la pantalla, Esc cancela. Las capturas se quedan en este Mac a menos que las subas.",
         fullScreenCaption: "Guarda todas las pantallas directamente en la carpeta predeterminada, sin seleccionar un área.",
         systemTitle: "Atajos de captura de macOS",
         systemOn: "macOS sigue respondiendo a sus propios atajos de captura (⇧⌘3, ⇧⌘4, ⇧⌘5). Para dejar las capturas a Vorssaint, desactívalos en Ajustes del Sistema › Teclado › Funciones rápidas de teclado › Capturas de pantalla. Vorssaint no los cambia por ti.",
@@ -198,7 +198,7 @@ extension ShotStrings {
 
     static let sk = ShotStrings(
         summary: "Vyberte oblasť, kreslite na ňu a potom ju skopírujte, uložte alebo vytlačte",
-        intro: "Obrazovka zamrzne, ťahaním vyberiete oblasť, kreslíte na ňu a potom ju skopírujete, uložíte alebo vytlačíte. ⌘A alebo dvojité kliknutie vyberie celý displej, Esc zruší. Snímky nikdy neopustia tento Mac.",
+        intro: "Obrazovka zamrzne, ťahaním vyberiete oblasť, kreslíte na ňu a potom ju skopírujete, uložíte alebo vytlačíte. ⌘A alebo dvojité kliknutie vyberie celý displej, Esc zruší. Snímky zostávajú v tomto Macu, kým ich sami nenahráte.",
         fullScreenCaption: "Uloží všetky displeje priamo do predvoleného priečinka bez výberu oblasti.",
         systemTitle: "Skratky snímok obrazovky v macOS",
         systemOn: "macOS stále reaguje na vlastné skratky snímok obrazovky (⇧⌘3, ⇧⌘4, ⇧⌘5). Ak chcete snímky prenechať aplikácii Vorssaint, vypnite ich v Systémové nastavenia › Klávesnica › Klávesové skratky › Snímky obrazovky. Vorssaint ich za vás nemení.",
@@ -226,7 +226,7 @@ extension ShotStrings {
 
     static let de = ShotStrings(
         summary: "Bereich auswählen, darauf zeichnen, dann kopieren, sichern oder drucken",
-        intro: "Der Bildschirm friert ein, du ziehst einen Bereich auf, zeichnest darauf und kopierst, sicherst oder druckst ihn. ⌘A oder ein Doppelklick wählt den ganzen Bildschirm, Esc bricht ab. Bildschirmfotos verlassen diesen Mac nie.",
+        intro: "Der Bildschirm friert ein, du ziehst einen Bereich auf, zeichnest darauf und kopierst, sicherst oder druckst ihn. ⌘A oder ein Doppelklick wählt den ganzen Bildschirm, Esc bricht ab. Bildschirmfotos bleiben auf diesem Mac, solange du sie nicht hochlädst.",
         fullScreenCaption: "Sichert alle Bildschirme direkt im Standardordner, ohne einen Bereich auszuwählen.",
         systemTitle: "macOS-Kurzbefehle für Bildschirmfotos",
         systemOn: "macOS reagiert weiterhin auf seine eigenen Kurzbefehle für Bildschirmfotos (⇧⌘3, ⇧⌘4, ⇧⌘5). Um Bildschirmfotos Vorssaint zu überlassen, deaktiviere sie in Systemeinstellungen › Tastatur › Tastaturkurzbefehle › Bildschirmfotos. Vorssaint ändert sie nicht für dich.",
@@ -254,7 +254,7 @@ extension ShotStrings {
 
     static let fr = ShotStrings(
         summary: "Sélectionnez une zone, dessinez dessus, puis copiez, enregistrez ou imprimez",
-        intro: "L’écran se fige, vous faites glisser pour sélectionner une zone, vous dessinez dessus, puis vous la copiez, l’enregistrez ou l’imprimez. ⌘A ou un double-clic sélectionne tout l’écran, Échap annule. Les captures ne quittent jamais ce Mac.",
+        intro: "L’écran se fige, vous faites glisser pour sélectionner une zone, vous dessinez dessus, puis vous la copiez, l’enregistrez ou l’imprimez. ⌘A ou un double-clic sélectionne tout l’écran, Échap annule. Les captures restent sur ce Mac tant que vous ne les téléversez pas.",
         fullScreenCaption: "Enregistre tous les écrans directement dans le dossier par défaut, sans sélectionner de zone.",
         systemTitle: "Raccourcis de capture de macOS",
         systemOn: "macOS répond toujours à ses propres raccourcis de capture (⇧⌘3, ⇧⌘4, ⇧⌘5). Pour laisser les captures à Vorssaint, désactivez-les dans Réglages Système › Clavier › Raccourcis clavier › Captures d’écran. Vorssaint ne les modifie pas à votre place.",
@@ -282,7 +282,7 @@ extension ShotStrings {
 
     static let it = ShotStrings(
         summary: "Seleziona un’area, disegnaci sopra, poi copiala, salvala o stampala",
-        intro: "Lo schermo si blocca, trascini per selezionare un’area, ci disegni sopra e poi la copi, la salvi o la stampi. ⌘A o un doppio clic seleziona l’intero schermo, Esc annulla. Le istantanee non lasciano mai questo Mac.",
+        intro: "Lo schermo si blocca, trascini per selezionare un’area, ci disegni sopra e poi la copi, la salvi o la stampi. ⌘A o un doppio clic seleziona l’intero schermo, Esc annulla. Le istantanee restano su questo Mac, a meno che tu non le carichi.",
         fullScreenCaption: "Salva tutti gli schermi direttamente nella cartella predefinita, senza selezionare un’area.",
         systemTitle: "Abbreviazioni di macOS per le istantanee",
         systemOn: "macOS risponde ancora alle proprie abbreviazioni per le istantanee (⇧⌘3, ⇧⌘4, ⇧⌘5). Per lasciare le istantanee a Vorssaint, disattivale in Impostazioni di Sistema › Tastiera › Abbreviazioni da tastiera › Istantanee schermo. Vorssaint non le modifica al posto tuo.",
@@ -310,7 +310,7 @@ extension ShotStrings {
 
     static let ja = ShotStrings(
         summary: "範囲を選択して書き込み、コピー、保存、プリントできます",
-        intro: "画面が静止し、ドラッグで範囲を選択して書き込み、コピー、保存、プリントできます。⌘Aまたはダブルクリックでディスプレイ全体を選択し、Escでキャンセルします。スクリーンショットがこのMacの外に出ることはありません。",
+        intro: "画面が静止し、ドラッグで範囲を選択して書き込み、コピー、保存、プリントできます。⌘Aまたはダブルクリックでディスプレイ全体を選択し、Escでキャンセルします。スクリーンショットは、アップロードしない限りこのMacの外に出ません。",
         fullScreenCaption: "範囲を選択せずに、すべてのディスプレイをデフォルトのフォルダに直接保存します。",
         systemTitle: "macOSのスクリーンショットのショートカット",
         systemOn: "macOSは自身のスクリーンショットのショートカット（⇧⌘3、⇧⌘4、⇧⌘5）にも反応します。スクリーンショットをVorssaintに任せるには、システム設定 › キーボード › キーボードショートカット › スクリーンショットでオフにしてください。Vorssaintが代わりに変更することはありません。",
@@ -338,7 +338,7 @@ extension ShotStrings {
 
     static let ko = ShotStrings(
         summary: "영역을 선택해 그린 다음 복사, 저장 또는 프린트합니다",
-        intro: "화면이 멈추면 드래그하여 영역을 선택하고 그 위에 그린 다음 복사, 저장 또는 프린트합니다. ⌘A 또는 이중 클릭으로 디스플레이 전체를 선택하고 Esc로 취소합니다. 스크린샷은 이 Mac을 벗어나지 않습니다.",
+        intro: "화면이 멈추면 드래그하여 영역을 선택하고 그 위에 그린 다음 복사, 저장 또는 프린트합니다. ⌘A 또는 이중 클릭으로 디스플레이 전체를 선택하고 Esc로 취소합니다. 스크린샷은 직접 업로드하지 않는 한 이 Mac을 벗어나지 않습니다.",
         fullScreenCaption: "영역을 선택하지 않고 모든 디스플레이를 기본 폴더에 바로 저장합니다.",
         systemTitle: "macOS 스크린샷 단축키",
         systemOn: "macOS가 여전히 자체 스크린샷 단축키(⇧⌘3, ⇧⌘4, ⇧⌘5)에 반응합니다. 스크린샷을 Vorssaint에 맡기려면 시스템 설정 › 키보드 › 키보드 단축키 › 스크린샷에서 끄십시오. Vorssaint가 대신 변경하지 않습니다.",
@@ -366,7 +366,7 @@ extension ShotStrings {
 
     static let zhHans = ShotStrings(
         summary: "选择一个区域，在上面绘制，然后拷贝、存储或打印",
-        intro: "屏幕会冻结，拖移选择一个区域，在上面绘制，然后拷贝、存储或打印。⌘A 或双击可选择整个显示器，Esc 取消。截屏绝不会离开这台 Mac。",
+        intro: "屏幕会冻结，拖移选择一个区域，在上面绘制，然后拷贝、存储或打印。⌘A 或双击可选择整个显示器，Esc 取消。除非你上传，否则截屏不会离开这台 Mac。",
         fullScreenCaption: "无需选择区域，直接将所有显示器存储到默认文件夹。",
         systemTitle: "macOS 截屏快捷键",
         systemOn: "macOS 仍会响应自己的截屏快捷键（⇧⌘3、⇧⌘4、⇧⌘5）。要将截屏交给 Vorssaint，请在“系统设置”›“键盘”›“键盘快捷键”›“截屏”中关闭它们。Vorssaint 不会替你更改。",
@@ -394,7 +394,7 @@ extension ShotStrings {
 
     static let zhTW = ShotStrings(
         summary: "選取一個區域，在上面繪圖，然後拷貝、儲存或列印",
-        intro: "螢幕會凍結，拖移選取一個區域，在上面繪圖，然後拷貝、儲存或列印。⌘A 或按兩下可選取整個顯示器，Esc 取消。截圖絕不會離開這部 Mac。",
+        intro: "螢幕會凍結，拖移選取一個區域，在上面繪圖，然後拷貝、儲存或列印。⌘A 或按兩下可選取整個顯示器，Esc 取消。除非你上傳，否則截圖不會離開這部 Mac。",
         fullScreenCaption: "不需選取區域，直接將所有顯示器儲存到預設檔案夾。",
         systemTitle: "macOS 截圖快速鍵",
         systemOn: "macOS 仍會回應自己的截圖快速鍵（⇧⌘3、⇧⌘4、⇧⌘5）。若要將截圖交給 Vorssaint，請在「系統設定」›「鍵盤」›「鍵盤快速鍵」›「截圖」中關閉它們。Vorssaint 不會替你更改。",
@@ -422,7 +422,7 @@ extension ShotStrings {
 
     static let zhHK = ShotStrings(
         summary: "選取一個範圍，在上面繪圖，然後拷貝、儲存或列印",
-        intro: "螢幕會凍結，拖移選取一個範圍，在上面繪圖，然後拷貝、儲存或列印。⌘A 或按兩下可選取整個顯示器，Esc 取消。截圖絕不會離開這部 Mac。",
+        intro: "螢幕會凍結，拖移選取一個範圍，在上面繪圖，然後拷貝、儲存或列印。⌘A 或按兩下可選取整個顯示器，Esc 取消。除非你上載，否則截圖不會離開這部 Mac。",
         fullScreenCaption: "無須選取範圍，直接將所有顯示器儲存到預設資料夾。",
         systemTitle: "macOS 截圖快捷鍵",
         systemOn: "macOS 仍會回應自己的截圖快捷鍵（⇧⌘3、⇧⌘4、⇧⌘5）。如要將截圖交給 Vorssaint，請在「系統設定」›「鍵盤」›「鍵盤快捷鍵」›「截圖」中關閉它們。Vorssaint 不會替你更改。",
@@ -450,7 +450,7 @@ extension ShotStrings {
 
     static let uk = ShotStrings(
         summary: "Виділіть область, намалюйте на ній, а потім скопіюйте, збережіть або надрукуйте",
-        intro: "Екран завмирає, ви перетягуєте, щоб виділити область, малюєте на ній, а потім копіюєте, зберігаєте або друкуєте. ⌘A або подвійне клацання вибирає весь дисплей, Esc скасовує. Знімки ніколи не залишають цей Mac.",
+        intro: "Екран завмирає, ви перетягуєте, щоб виділити область, малюєте на ній, а потім копіюєте, зберігаєте або друкуєте. ⌘A або подвійне клацання вибирає весь дисплей, Esc скасовує. Знімки залишаються на цьому Mac, доки ви самі їх не вивантажите.",
         fullScreenCaption: "Зберігає всі дисплеї одразу до типової папки, без вибору області.",
         systemTitle: "Сполучення клавіш macOS для знімків екрана",
         systemOn: "macOS досі відповідає на власні сполучення клавіш для знімків екрана (⇧⌘3, ⇧⌘4, ⇧⌘5). Щоб залишити знімки Vorssaint, вимкніть їх у «Системні параметри» › «Клавіатура» › «Клавіатурні скорочення» › «Знімки екрана». Vorssaint не змінює їх за вас.",

@@ -669,6 +669,8 @@ enum DefaultsKey {
     static let shotNotify = "shotNotify"
     static let shotMagnifier = "shotMagnifier"
     static let shotColor = "shotColor"                   // RRGGBB
+    static let shotUploadKey = "shotUploadKey"           // the ImgBB API key; empty = uploading is off
+    static let shotUploadExpiry = "shotUploadExpiry"     // seconds an upload is kept; 0 = until deleted
     static let panelUtilityScreenshot = "panelUtilityScreenshot"
 
     static let panelUtilityPortManager = "panelUtilityPortManager"
@@ -1878,6 +1880,8 @@ enum Defaults {
         DefaultsKey.shotNotify: true,
         DefaultsKey.shotMagnifier: true,
         DefaultsKey.shotColor: "FF0000",
+        DefaultsKey.shotUploadKey: "",
+        DefaultsKey.shotUploadExpiry: 0,
         DefaultsKey.panelUtilityScreenshot: true,
         DefaultsKey.windowLayoutShortcutsEnabled: false,
         DefaultsKey.windowDirectionalEnabled: false,

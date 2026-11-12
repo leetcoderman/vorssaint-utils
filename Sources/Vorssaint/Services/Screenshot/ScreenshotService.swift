@@ -5,8 +5,9 @@ import AppKit
 import UniformTypeIdentifiers
 
 /// The screenshot tool: the capture overlay, the instant whole-screen save,
-/// and what happens to a finished image (copy, save, print, open in Preview).
-/// Nothing is ever uploaded.
+/// and what happens to a finished image (copy, save, print, open in Preview,
+/// upload for a share link). An image leaves this Mac only when Upload is
+/// chosen, and only once an ImgBB API key has been added in the settings.
 final class ScreenshotService: ObservableObject {
     static let shared = ScreenshotService()
 
@@ -279,6 +280,78 @@ final class ScreenshotService: ObservableObject {
         guard operation.run() else { return false }
         if defaults.bool(forKey: DefaultsKey.shotAutoCopy) { copy(image, scale: scale, notify: false) }
         return true
+    }
+
+    // MARK: Share links
+
+    private static let uploadSession: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.urlCache = nil
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.httpShouldSetCookies = false
+        configuration.timeoutIntervalForRequest = 30
+        configuration.timeoutIntervalForResource = 60
+        configuration.waitsForConnectivity = false
+        return URLSession(configuration: configuration)
+    }()
+
+    /// Uploads the image to ImgBB and puts its link on the pasteboard. When
+    /// there is no key, or the upload fails, the image itself is copied
+    /// instead, so the capture is not lost.
+    func upload(_ image: CGImage, scale: CGFloat) {
+        let strings = FeatureStrings.shotUpload(L10n.shared.language)
+        let key = ShotUpload.cleanKey(defaults.string(forKey: DefaultsKey.shotUploadKey))
+        guard !key.isEmpty else {
+            uploadFailed(image, scale: scale, message: strings.needsKey)
+            return
+        }
+        // PNG unless JPEG is the chosen format; a PNG too large for ImgBB goes as JPEG.
+        let quality = defaults.integer(forKey: DefaultsKey.shotJPEGQuality)
+        let chosen = ShotFiles.sanitizedFormat(defaults.string(forKey: DefaultsKey.shotFormat) ?? "png")
+        var format = chosen == "jpg" ? "jpg" : "png"
+        var encoded = Self.data(image, scale: scale, format: format, jpegQuality: quality)
+        if format == "png", let png = encoded, png.count > ShotUpload.maxBytes {
+            format = "jpg"
+            encoded = Self.data(image, scale: scale, format: format, jpegQuality: quality)
+        }
+        let boundary = "vorssaint-\(UUID().uuidString)"
+        guard let data = encoded, data.count <= ShotUpload.maxBytes,
+              let request = ShotUpload.request(key: key,
+                                               expiry: defaults.integer(forKey: DefaultsKey.shotUploadExpiry),
+                                               boundary: boundary)
+        else {
+            uploadFailed(image, scale: scale, message: strings.failed)
+            return
+        }
+        let body = ShotUpload.body(data, fileName: "screenshot.\(format)", boundary: boundary)
+        Task { @MainActor in
+            let outcome: ShotUpload.Outcome
+            do {
+                let (answer, _) = try await ScreenshotService.uploadSession.upload(for: request, from: body)
+                outcome = ShotUpload.parse(answer)
+            } catch {
+                outcome = .refused(nil)
+            }
+            switch outcome {
+            case .link(let link):
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.declareVorssaintSource()
+                pasteboard.setString(link, forType: .string)
+                AppSoundService.shared.play(.screenshotTaken)
+                QuickToolHUD.show(icon: "link", message: strings.linkCopied)
+            case .refused(let reason):
+                // The HUD shows two lines: ImgBB's reason gets the second one.
+                let message = reason.map { "\(strings.failed)\n\($0)" } ?? strings.failed
+                self.uploadFailed(image, scale: scale, message: message)
+            }
+        }
+    }
+
+    private func uploadFailed(_ image: CGImage, scale: CGFloat, message: String) {
+        copy(image, scale: scale, notify: false)
+        QuickToolHUD.show(icon: "exclamationmark.triangle", message: message)
     }
 
     /// The image opens in Preview from a temporary file, for anything the

@@ -436,6 +436,7 @@ final class ShotOverlay: NSObject, NSTextViewDelegate {
             case "c": output(copyImage)
             case "s": output(saveImage)
             case "p": output(printImage)
+            case "d": output(uploadImage)
             case "z": undo()
             default: return false
             }
@@ -562,6 +563,11 @@ final class ShotOverlay: NSObject, NSTextViewDelegate {
         toolsBar = tools
 
         let actions = ShotBar(vertical: false)
+        let upload = FeatureStrings.shotUpload(L10n.shared.language)
+        actions.add(ShotBarButton(symbol: "icloud.and.arrow.up", tip: "\(upload.button) (⌘D)") { [weak self] in
+            guard let self else { return }
+            self.output(self.uploadImage)
+        })
         actions.add(ShotBarButton(symbol: "photo", tip: extra.openInPreview) { [weak self] in
             guard let self else { return }
             self.output(self.openInPreview)
@@ -686,6 +692,14 @@ final class ShotOverlay: NSObject, NSTextViewDelegate {
         let printed = service.print(image, scale: scale)
         if !printed { showPanels() }
         return printed
+    }
+
+    /// The image goes to ImgBB and its link lands on the pasteboard; without
+    /// an API key nothing is sent and the image is copied instead.
+    private func uploadImage(_ image: CGImage, scale: CGFloat) -> Bool {
+        close()
+        service.upload(image, scale: scale)
+        return true
     }
 
     private func openInPreview(_ image: CGImage, scale: CGFloat) -> Bool {
