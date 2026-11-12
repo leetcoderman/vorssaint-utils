@@ -20,12 +20,15 @@ struct ScreenshotSettings: View {
     @AppStorage(DefaultsKey.shotKeepSelection) private var keepSelection = false
     @AppStorage(DefaultsKey.shotCaptureCursor) private var captureCursor = false
     @AppStorage(DefaultsKey.shotMagnifier) private var magnifier = true
+    @AppStorage(DefaultsKey.shotUploadKey) private var uploadKey = ""
+    @AppStorage(DefaultsKey.shotUploadExpiry) private var uploadExpiry = 0
     @State private var patternDraft = ""
     @State private var systemShortcutsOn = true
     @FocusState private var patternFocused: Bool
 
     private var shot: ScreenshotFeatureStrings { FeatureStrings.screenshot(l10n.language) }
     private var text: ShotStrings { FeatureStrings.shot(l10n.language) }
+    private var upload: ShotUploadStrings { FeatureStrings.shotUpload(l10n.language) }
 
     var body: some View {
         Form {
@@ -145,6 +148,28 @@ struct ScreenshotSettings: View {
                 .disabled(format != "jpg")
             } header: {
                 Text(text.saving)
+            }
+
+            Section {
+                SecureField(upload.keyLabel, text: $uploadKey)
+                Button(upload.getKey) {
+                    if let url = URL(string: "https://api.imgbb.com/") {
+                        NSWorkspace.shared.open(url)
+                    }
+                }
+                Picker(upload.expiryLabel, selection: $uploadExpiry) {
+                    Text(upload.never).tag(0)
+                    Text(upload.hour).tag(3_600)
+                    Text(upload.day).tag(86_400)
+                    Text(upload.week).tag(604_800)
+                    Text(upload.month).tag(2_592_000)
+                }
+                Text(upload.caption)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } header: {
+                Text(upload.title)
             }
 
             Section {

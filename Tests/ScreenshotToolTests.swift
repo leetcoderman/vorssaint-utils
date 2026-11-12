@@ -16,6 +16,7 @@ enum ScreenshotToolTests {
         files(suite)
         systemShortcuts(suite)
         strings(suite)
+        upload(suite)
     }
 
     private static func geometry(_ suite: TestSuite) {
@@ -219,6 +220,49 @@ enum ScreenshotToolTests {
                             && text.sizeHintFormat.components(separatedBy: "%d").count == 2
                             && text.textSizeHintFormat.components(separatedBy: "%d").count == 2,
                          "\(language.rawValue) keeps one placeholder in each format")
+        }
+    }
+
+    private static func upload(_ suite: TestSuite) {
+        suite.expect(ShotUpload.expiration(0) == 0 && ShotUpload.expiration(-5) == 0
+                        && ShotUpload.expiration(10) == 60 && ShotUpload.expiration(3_600) == 3_600
+                        && ShotUpload.expiration(99_999_999) == 15_552_000,
+                     "an upload's expiry stays within what ImgBB takes")
+        suite.expect(ShotUpload.endpoint(key: " abc 123\r\n", expiry: 0)?.absoluteString
+                        == "https://api.imgbb.com/1/upload?key=abc123"
+                        && ShotUpload.endpoint(key: "abc123", expiry: 86_400)?.absoluteString
+                        == "https://api.imgbb.com/1/upload?key=abc123&expiration=86400",
+                     "the upload address carries the cleaned key and only a real expiry")
+        let request = ShotUpload.request(key: "abc123", expiry: 0, boundary: "b")
+        suite.expect(request?.httpMethod == "POST"
+                        && request?.value(forHTTPHeaderField: "Content-Type") == "multipart/form-data; boundary=b",
+                     "the upload is a multipart POST")
+        let body = ShotUpload.body(Data([1, 2, 3]), fileName: "screenshot.png", boundary: "b")
+        let head = "--b\r\nContent-Disposition: form-data; name=\"image\"; filename=\"screenshot.png\"\r\n"
+            + "Content-Type: image/png\r\n\r\n"
+        suite.expect(body == Data(head.utf8) + Data([1, 2, 3]) + Data("\r\n--b--\r\n".utf8),
+                     "the upload body is the image as one form part")
+
+        let ok = #"{"data":{"url_viewer":"https://ibb.co/2ndCYJK","url":"https://i.ibb.co/w04Prt6/screenshot.png"},"success":true,"status":200}"#
+        suite.expect(ShotUpload.parse(Data(ok.utf8)) == .link("https://i.ibb.co/w04Prt6/screenshot.png"),
+                     "an accepted upload gives the image's direct link")
+        let badKey = #"{"status_code":400,"error":{"message":"Invalid API v1 key.","code":100},"status_txt":"Bad Request"}"#
+        suite.expect(ShotUpload.parse(Data(badKey.utf8)) == .refused("Invalid API v1 key."),
+                     "a refused upload gives ImgBB's reason")
+        let notLinks = ["", "<html>502 Bad Gateway</html>", "[]", #"{"data":{}}"#,
+                        #"{"data":{"url":"http://i.ibb.co/x/y.png"}}"#, #"{"data":{"url":"not a link"}}"#,
+                        #"{"data":{"url":42}}"#]
+        suite.expect(notLinks.allSatisfy { ShotUpload.parse(Data($0.utf8)) == .refused(nil) },
+                     "nothing but an https link is ever treated as a link")
+
+        suite.expect(!SettingsBackupSupport.exportKeys().contains(DefaultsKey.shotUploadKey)
+                        && SettingsBackupSupport.exportKeys().contains(DefaultsKey.shotUploadExpiry),
+                     "the upload key never travels with a settings backup; the link lifetime does")
+        for language in AppLanguage.allCases {
+            let text = FeatureStrings.shotUpload(language)
+            let values = Mirror(reflecting: text).children.compactMap { $0.value as? String }
+            suite.expect(values.count == 14 && values.allSatisfy { !$0.isEmpty },
+                         "\(language.rawValue) has every share link string")
         }
     }
 }

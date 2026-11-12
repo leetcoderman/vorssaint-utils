@@ -21,6 +21,8 @@ Command Bar saves how often you choose an item and a limited set of associations
 
 Recent Captures keeps up to 12 screenshots, within a 256 MB limit, in the app's private local cache so you can reopen them. Recordings are not duplicated: only their existing path and a small thumbnail are kept. Clear removes that history and its cached images. When a screenshot is copied as a file, its private local PNG is kept temporarily so other apps can finish reading it, then cleaned on later copies once it is older than 24 hours or earlier when the bounded cache fills. None of these local caches is uploaded automatically.
 
+The screenshot tool can upload a capture for a share link, but only when you press its upload button and only after you have added your own ImgBB API key in its settings. The image then goes to ImgBB (imgbb.com), a third party service, under your ImgBB account, where you can delete it; the link is copied to your clipboard. The key is stored in the app's local preferences on your Mac and is left out of settings backups. Without a key nothing is uploaded.
+
 When a feature needs a macOS permission such as Accessibility, Screen Recording or Microphone, that access is used only for the feature it belongs to. Captured content leaves the Mac only when you explicitly share it, from the Share menu or with a temporary link, and the audio of apps you route to AirPlay goes only to the speaker you pick on your local network. The [permissions guide](PERMISSIONS.md) breaks down each permission.
 
 ## Optional notch features

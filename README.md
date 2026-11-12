@@ -162,7 +162,7 @@ Reorder or hide panel sections, choose a compact layout, and export settings to 
 
 ### Capture and create
 
-- **Screenshot.** Press Command-Shift-S to freeze the screen, drag over an area, then draw on it with a pen, lines, arrows, shapes, a highlighter, text and blur. Copy it, save it, print it or open it in Preview. Nothing is uploaded.
+- **Screenshot.** Press Command-Shift-S to freeze the screen, drag over an area, then draw on it with a pen, lines, arrows, shapes, a highlighter, text and blur. Copy it, save it, print it or open it in Preview. With your own free ImgBB API key you can also upload it and get a link to share; without a key nothing is uploaded.
 - **Camera preview.** Check your camera in a floating mirror or Dynamic Island before a call.
 - **Media tools.** Compress and edit videos, batch-convert images, add watermarks, make GIFs and extract text, all locally.
 
