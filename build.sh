@@ -359,8 +359,10 @@ if (( TEST )); then
         Sources/Vorssaint/Core/QuickToggleStrings.swift
         Sources/Vorssaint/Core/ScreenshotStrings.swift
         Sources/Vorssaint/Core/ShotStrings.swift
+        Sources/Vorssaint/Core/ShotUploadStrings.swift
         Sources/Vorssaint/Services/Screenshot/ShotGeometry.swift
         Sources/Vorssaint/Services/Screenshot/ShotModel.swift
+        Sources/Vorssaint/Services/Screenshot/ShotUpload.swift
         Sources/Vorssaint/Core/RecorderStrings.swift
         Sources/Vorssaint/Core/CameraPreviewStrings.swift
         Sources/Vorssaint/Core/WallpaperStrings.swift

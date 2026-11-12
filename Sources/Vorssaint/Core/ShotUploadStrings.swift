@@ -59,7 +59,7 @@ extension ShotUploadStrings {
         month: "After 30 days",
         linkCopied: "Link copied",
         failed: "Upload failed. The screenshot was copied instead.",
-        needsKey: "Add your ImgBB API key in Settings to upload. The screenshot was copied instead."
+        needsKey: "Add your ImgBB API key in Settings to upload.\nThe screenshot was copied instead."
     )
 
     static let ptBR = ShotUploadStrings(
@@ -76,7 +76,7 @@ extension ShotUploadStrings {
         month: "Depois de 30 dias",
         linkCopied: "Link copiado",
         failed: "O envio falhou. A captura foi copiada.",
-        needsKey: "Adicione sua chave de API do ImgBB nos Ajustes para enviar. A captura foi copiada."
+        needsKey: "Adicione sua chave de API do ImgBB nos Ajustes para enviar.\nA captura foi copiada."
     )
 
     static let tr = ShotUploadStrings(
@@ -93,7 +93,7 @@ extension ShotUploadStrings {
         month: "30 gün sonra dolar",
         linkCopied: "Bağlantı kopyalandı",
         failed: "Yükleme başarısız oldu. Ekran görüntüsü kopyalandı.",
-        needsKey: "Yüklemek için Ayarlar’a ImgBB API anahtarınızı ekleyin. Ekran görüntüsü kopyalandı."
+        needsKey: "Yüklemek için Ayarlar’a ImgBB API anahtarınızı ekleyin.\nEkran görüntüsü kopyalandı."
     )
 
     static let ru = ShotUploadStrings(
@@ -110,7 +110,7 @@ extension ShotUploadStrings {
         month: "30 дней",
         linkCopied: "Ссылка скопирована",
         failed: "Не удалось загрузить. Снимок скопирован.",
-        needsKey: "Чтобы загружать, добавьте ключ API ImgBB в настройках. Снимок скопирован."
+        needsKey: "Чтобы загружать, добавьте ключ API ImgBB в настройках.\nСнимок скопирован."
     )
 
     static let es = ShotUploadStrings(
@@ -127,7 +127,7 @@ extension ShotUploadStrings {
         month: "Después de 30 días",
         linkCopied: "Enlace copiado",
         failed: "La subida ha fallado. Se ha copiado la captura.",
-        needsKey: "Añade tu clave de API de ImgBB en Ajustes para subir. Se ha copiado la captura."
+        needsKey: "Añade tu clave de API de ImgBB en Ajustes para subir.\nSe ha copiado la captura."
     )
 
     static let sk = ShotUploadStrings(
@@ -144,7 +144,7 @@ extension ShotUploadStrings {
         month: "30 dní",
         linkCopied: "Odkaz skopírovaný",
         failed: "Nahranie zlyhalo. Snímka bola skopírovaná.",
-        needsKey: "Ak chcete nahrávať, pridajte v Nastaveniach kľúč API služby ImgBB. Snímka bola skopírovaná."
+        needsKey: "Pridajte v Nastaveniach kľúč API služby ImgBB.\nSnímka bola skopírovaná."
     )
 
     static let de = ShotUploadStrings(
@@ -160,8 +160,8 @@ extension ShotUploadStrings {
         week: "Nach 1 Woche",
         month: "Nach 30 Tagen",
         linkCopied: "Link kopiert",
-        failed: "Hochladen fehlgeschlagen. Das Bildschirmfoto wurde kopiert.",
-        needsKey: "Trage zum Hochladen deinen ImgBB-API-Schlüssel in den Einstellungen ein. Das Bildschirmfoto wurde kopiert."
+        failed: "Hochladen fehlgeschlagen. Bildschirmfoto wurde kopiert.",
+        needsKey: "ImgBB-API-Schlüssel in den Einstellungen eintragen.\nDas Bildschirmfoto wurde kopiert."
     )
 
     static let fr = ShotUploadStrings(
@@ -178,7 +178,7 @@ extension ShotUploadStrings {
         month: "Après 30 jours",
         linkCopied: "Lien copié",
         failed: "Échec du téléversement. La capture a été copiée.",
-        needsKey: "Ajoutez votre clé d’API ImgBB dans les réglages pour téléverser. La capture a été copiée."
+        needsKey: "Ajoutez votre clé d’API ImgBB dans les réglages.\nLa capture a été copiée."
     )
 
     static let it = ShotUploadStrings(
@@ -195,7 +195,7 @@ extension ShotUploadStrings {
         month: "Dopo 30 giorni",
         linkCopied: "Link copiato",
         failed: "Caricamento non riuscito. L’istantanea è stata copiata.",
-        needsKey: "Aggiungi la tua chiave API di ImgBB nelle Impostazioni per caricare. L’istantanea è stata copiata."
+        needsKey: "Aggiungi la tua chiave API di ImgBB nelle Impostazioni.\nL’istantanea è stata copiata."
     )
 
     static let ja = ShotUploadStrings(
@@ -211,8 +211,8 @@ extension ShotUploadStrings {
         week: "1週間後",
         month: "30日後",
         linkCopied: "リンクをコピーしました",
-        failed: "アップロードできませんでした。スクリーンショットをコピーしました。",
-        needsKey: "アップロードするには、設定でImgBB APIキーを追加してください。スクリーンショットをコピーしました。"
+        failed: "アップロード失敗。スクリーンショットをコピーしました。",
+        needsKey: "設定でImgBB APIキーを追加してください。\nスクリーンショットをコピーしました。"
     )
 
     static let ko = ShotUploadStrings(
@@ -229,7 +229,7 @@ extension ShotUploadStrings {
         month: "30일 후",
         linkCopied: "링크를 복사했습니다",
         failed: "업로드하지 못했습니다. 스크린샷을 복사했습니다.",
-        needsKey: "업로드하려면 설정에서 ImgBB API 키를 추가하세요. 스크린샷을 복사했습니다."
+        needsKey: "업로드하려면 설정에서 ImgBB API 키를 추가하세요.\n스크린샷을 복사했습니다."
     )
 
     static let zhHans = ShotUploadStrings(
@@ -246,7 +246,7 @@ extension ShotUploadStrings {
         month: "30 天后",
         linkCopied: "已拷贝链接",
         failed: "上传失败，已改为拷贝截屏。",
-        needsKey: "要上传，请在设置中添加 ImgBB API 密钥。已改为拷贝截屏。"
+        needsKey: "要上传，请在设置中添加 ImgBB API 密钥。\n已改为拷贝截屏。"
     )
 
     static let zhTW = ShotUploadStrings(
@@ -263,7 +263,7 @@ extension ShotUploadStrings {
         month: "30 天後",
         linkCopied: "已拷貝連結",
         failed: "上傳失敗，已改為拷貝截圖。",
-        needsKey: "若要上傳，請在設定中加入 ImgBB API 金鑰。已改為拷貝截圖。"
+        needsKey: "若要上傳，請在設定中加入 ImgBB API 金鑰。\n已改為拷貝截圖。"
     )
 
     static let zhHK = ShotUploadStrings(
@@ -280,7 +280,7 @@ extension ShotUploadStrings {
         month: "30 日後",
         linkCopied: "已拷貝連結",
         failed: "上載失敗，已改為拷貝截圖。",
-        needsKey: "如要上載，請在設定中加入 ImgBB API 密鑰。已改為拷貝截圖。"
+        needsKey: "如要上載，請在設定中加入 ImgBB API 密鑰。\n已改為拷貝截圖。"
     )
 
     static let uk = ShotUploadStrings(
@@ -297,6 +297,6 @@ extension ShotUploadStrings {
         month: "30 днів",
         linkCopied: "Посилання скопійовано",
         failed: "Не вдалося вивантажити. Знімок скопійовано.",
-        needsKey: "Щоб вивантажувати, додайте ключ API ImgBB у налаштуваннях. Знімок скопійовано."
+        needsKey: "Додайте ключ API ImgBB у налаштуваннях.\nЗнімок скопійовано."
     )
 }
